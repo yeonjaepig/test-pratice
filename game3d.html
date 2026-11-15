@@ -43,6 +43,27 @@
   #btnGrapple { right: 14px; bottom: 26px; width: 96px; height: 96px; font-size: 15px; }
   #btnAttack  { right: 122px; bottom: 22px; width: 78px; height: 78px; }
   #btnRescue  { right: 26px; bottom: 136px; width: 78px; height: 78px; }
+  #menu { touch-action: pan-y; position: fixed; inset: 0; z-index: 6; background: rgba(12,18,32,.94); overflow-y: auto; padding: 18px 12px 28px;
+          box-sizing: border-box; text-align: center; }
+  #menu h1 { margin: 4px 0 4px; font-size: 28px; }
+  #menu p { margin: 4px auto; max-width: 560px; line-height: 1.55; font-size: 14px; color: #dfe6f5; }
+  .mapgrid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 14px 0 6px; }
+  .mapcard { width: 190px; background: #1f2a40; border: 3px solid #3a4a6a; border-radius: 12px; padding: 10px; cursor: pointer;
+             box-sizing: border-box; }
+  .mapcard.sel { border-color: #ffd84a; background: #2b3a5a; }
+  .mapcard.bad { opacity: .55; cursor: default; border-color: #a44; }
+  .mapcard canvas { width: 150px; height: 150px; border-radius: 6px; display: block; margin: 0 auto; }
+  .mapcard .mn { display: block; font-size: 17px; font-weight: bold; margin: 8px 0 3px; }
+  .mapcard .md { display: block; font-size: 12px; line-height: 1.45; color: #cfd8ea; }
+  .mapcard .ms { display: block; font-size: 12px; color: #ffd84a; margin-top: 4px; }
+  #menuMsg { color: #ffb4b4; font-size: 13px; min-height: 18px; }
+  #menuStart { margin-top: 12px; padding: 12px 36px; font-size: 20px; border: 0; border-radius: 10px; background: #4caf50; color: #fff; cursor: pointer; }
+  #menuStart:disabled { background: #666; cursor: default; }
+  #overlay { z-index: 4; }
+  #overlay button.sub { background: #4a5a7a; font-size: 16px; padding: 10px 24px; }
+  #btnPause { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); padding: 4px 14px; font-size: 14px; border-radius: 8px;
+              background: rgba(20,30,50,.55); border: 2px solid rgba(255,255,255,.6); color: #fff; z-index: 3; }
+
 </style>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
@@ -59,25 +80,34 @@
 <div class="abtn" id="btnAttack">⚔<br>목덜미<br>베기</div>
 <div class="abtn" id="btnRescue">🤝<br>시민<br>업기</div>
 <div class="abtn" id="btnGrapple">🪝<br>입체기동<br>(꾹 누르기)</div>
-<div id="overlay">
+<button id="btnPause">⏸ 멈춤 / 맵 고르기</button>
+<div id="overlay" style="display:none">
   <h1 id="ovTitle">거인 디펜스 3D 시험판</h1>
-  <p id="ovText">거인이 쳐들어온 마을! 집 안에 숨은 시민(<b style="color:#ffd84a">노란 빛기둥</b>)에게 다가가 <b>G</b>로 업고(최대 2명)
+  <p id="ovText"></p>
+  <button id="ovBtn">다시 시작</button>
+  <button id="ovMenuBtn" class="sub">맵 고르기</button>
+</div>
+<div id="menu">
+  <h1>🏰 거인 디펜스 3D</h1>
+  <p>플레이할 맵을 골라 주세요. (맵 파일을 <b>maps</b> 폴더에 넣으면 여기에 자동으로 나타나요)</p>
+  <div id="menuMsg"></div>
+  <div class="mapgrid" id="mapGrid"></div>
+  <button id="menuStart" disabled>맵을 골라 주세요</button>
+  <p style="margin-top:16px">집 안에 숨은 시민(<b style="color:#ffd84a">노란 빛기둥</b>)에게 다가가 <b>G</b>로 업고(최대 2명)
      <b style="color:#6ab7ff">파란 대피소</b>까지 데려가세요. 거인에게 잡혀 먹히려는 시민은
      <b>입체기동으로 거인 뒤로 날아가 목덜미(주황색 점)를 F로 베어야</b> 구할 수 있어요!</p>
-  <p>컴퓨터: <b>WASD</b> 이동 / <b>Space(꾹 누르기)</b> 입체기동 / <b>F</b> 목덜미 베기 / <b>G</b> 시민 업기<br>
-     입체기동은 WASD로 정한 방향(안 누르면 보고 있는 방향)으로 걸려요. 시점은 마우스 드래그나 Q/E, 휠로 확대·축소<br>
-     (마우스로는 입체기동을 쓸 수 없어요)</p>
-  <p>모바일: 왼쪽 화면을 끌어 이동, 오른쪽 화면을 끌어 시점 돌리기, 오른쪽 아래 버튼으로 입체기동·베기</p>
-  <p>거인에게 잡히면 바로 끝나지 않아요. <b>아무 버튼이나 연타</b>하면 탈출할 수 있어요!</p>
-  <button id="ovBtn">시작</button>
+  <p>컴퓨터: <b>WASD</b> 이동 / <b>Space(꾹 누르기)</b> 입체기동 / <b>F</b> 목덜미 베기 / <b>G</b> 시민 업기 / <b>Esc</b> 멈춤<br>
+     시점은 마우스 드래그나 Q/E, 휠로 확대·축소 (마우스로는 입체기동을 쓸 수 없어요)</p>
+  <p>모바일: 왼쪽 화면을 끌어 이동, 오른쪽 화면을 끌어 시점 돌리기, 오른쪽 아래 버튼으로 입체기동·베기<br>
+     거인에게 잡히면 <b>아무 버튼이나 연타</b>하면 탈출할 수 있어요!</p>
 </div>
+
 
 <script type="module">
 import * as THREE from 'three';
 
 // ===== 설정값: 숫자만 바꿔도 게임이 달라져요 =====
 const CONFIG = {
-  blocksPerSide: 8,      // 마을 크기 (8이면 8 x 8 구역)
   playerSpeed: 17,       // 땅에서 달리는 속도
   carryMax: 2,           // 한 번에 업을 수 있는 시민 수
   grappleRange: 110,     // 입체기동이 닿는 거리
@@ -98,25 +128,16 @@ const CONFIG = {
   citizenOutside: 4,     // 밖에 나와 있는 시민 수 (나머지는 집 안에 숨어 있어요)
   saveGoal: 13           // 이만큼 구출하면 승리
 };
-// =================================================
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
-// ---------- 마을 크기 계산 ----------
-const BW = 56, SW = 14, N = CONFIG.blocksPerSide, PITCH = BW + SW; // 구역 크기, 길 너비
-const HALF = (N * BW + (N + 1) * SW) / 2;
-const blockCenter = i => -HALF + SW + BW / 2 + i * PITCH;
-const SX = [], SZ = []; // 길 한가운데 좌표
-for (let k = 0; k <= N; k++) { SX.push(-HALF + SW / 2 + k * PITCH); SZ.push(-HALF + SW / 2 + k * PITCH); }
-const SI = Math.floor(N / 2) - 1, SJ = SI;               // 대피소가 있는 구역
-const SHELTER = { x: blockCenter(SI), z: blockCenter(SJ), r: 26 };
-const HGT = 3.6;      // 내 몸 높이 (충돌 계산용)
 const WALL_T = 0.6;   // 집 벽 두께
 const DOOR_W = 4.6;   // 문 너비
 const DOOR_H = 5.8;   // 문 높이
 const LOW_WALL = 5.2; // 집 안에 들어가면 벽이 이 높이로 낮아져서 안이 보여요
+
 
 // ---------- 기본 장면 ----------
 const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -152,9 +173,404 @@ sc.left = -80; sc.right = 80; sc.top = 80; sc.bottom = -80; sc.near = 1; sc.far 
 sc.updateProjectionMatrix();
 sun.shadow.bias = -0.0006;
 scene.add(sun, sun.target);
+// =====================================================================
+//  맵 시스템
+//  맵은 maps/ 폴더의 파일 하나하나예요. 파일 안에서 registerMap({...}) 으로 자기를 등록하고,
+//  build(m) 안에서 m.house(), m.road() 같은 도구로 마을을 설계해요.
+//  (자세한 설명은 maps/_template.js 를 보세요)
+// =====================================================================
+const MAPS = [];
+window.registerMap = def => {
+  if (def && def.id && typeof def.build === 'function') MAPS.push(def);
+  else console.warn('맵 등록 실패: id 와 build(m) 함수가 필요해요', def);
+};
 
-// ---------- 땅(돌길)과 성벽 ----------
-function cobbleTexture() {
+const CELL = 70; // 충돌 검색용 칸 크기
+const wallColors = [0xf4ecd9, 0xeadfc6, 0xf1e3cf, 0xe3d6bd, 0xf0e6d2, 0xe7d5b5, 0xdfd2bb, 0xf7f1e3];
+const roofColors = [0xb4533a, 0xb4533a, 0xa24a33, 0xc0623f, 0x8d4a35, 0x6e5546, 0x55606b];
+const baseColors = [0x9b968c, 0xa9a398, 0x8d887f];
+const doorColors = [0x6b4423, 0x4d3b2b, 0x7a5230, 0x5b3a29];
+const floorColors = [0x9a7a52, 0x8d6e48, 0xa6865c, 0x7f6644];
+const bedColors = [0xc0504d, 0x4f81bd, 0x9bbb59, 0xf2a65a];
+const rugColors = [0xb04a4a, 0x4a6fb0, 0x6a9a5a, 0xc89a3a];
+const HEIGHT_TIERS = [9.5, 11.5, 13.5, 15.5, 17.5]; // 집 높이 단계 (조금씩 달라요)
+const BW = 56; // 대피소 광장 크기
+
+function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
+
+// ---------- 레이아웃(설계도) 만들기: 화면 없이 숫자만 다뤄요 ----------
+function makeLayout(def) {
+  const L = {
+    id: def.id, name: def.name, def,
+    sky: 0x9fd4ff, fog: [170, 560], extent: 300,
+    bounds: { kind: 'rect', hx: 300, hz: 300 },
+    ground: { kind: 'rect', hx: 300, hz: 300 }, groundColor: 0x7d7a74, outerColor: 0x5a9a48,
+    roads: { draw: false, color: 0x6a665f },
+    titanHunt: 0, config: {}, start: null, shelter: null,
+    nodes: [], edges: [], houses: [], towers: [], rings: [], zones: [], hash: new Map(),
+    trees: [], mountains: [],
+    D: { BASE: [], WALL: [], ROOF: [], CEIL: [], CHIM: [], DOOR: [], WIN: [], FRAME: [], FLOOR: [], FURN: [],
+         SBOX: [], SROOF: [], CYL: [], CONE: [], ROAD: [], TRUNK: [], CROWN: [], MTN: [], SNOW: [] }
+  };
+  const D = L.D;
+
+  const hashAdd = o => {
+    const key = Math.floor(o.x / CELL) + ',' + Math.floor(o.z / CELL);
+    let a = L.hash.get(key); if (!a) { a = []; L.hash.set(key, a); }
+    a.push(o);
+  };
+  const inBounds = (x, z, m) => {
+    const b = L.bounds;
+    if (b.kind === 'circle') return Math.hypot(x - (b.cx || 0), z - (b.cz || 0)) < b.r - m;
+    return Math.abs(x) < b.hx - m && Math.abs(z) < b.hz - m;
+  };
+  const segDist = (px, pz, e) => {
+    const a = L.nodes[e.a], b = L.nodes[e.b];
+    const u = clamp(((px - a.x) * e.ux + (pz - a.z) * e.uz), 0, e.len);
+    return Math.hypot(px - (a.x + e.ux * u), pz - (a.z + e.uz * u));
+  };
+  // 이 점에 뭔가(길, 벽, 다른 집...)가 이미 있나?
+  const pointBlocked = (x, z) => {
+    if (!inBounds(x, z, 4)) return true;
+    for (const r of L.rings) { const q = Math.hypot(x - r.cx, z - r.cz); if (q > r.r0 - 1.5 && q < r.r1 + 1.5) return true; }
+    for (const t of L.towers) if (Math.hypot(x - t.x, z - t.z) < t.r + 1) return true;
+    for (const zn of L.zones) {
+      if (zn.r !== undefined) { if (Math.hypot(x - zn.x, z - zn.z) < zn.r) return true; }
+      else if (Math.abs(x - zn.x) < zn.hw && Math.abs(z - zn.z) < zn.hd) return true;
+    }
+    for (const e of L.edges) if (segDist(x, z, e) < e.w / 2 - 0.8) return true;
+    const ci = Math.floor(x / CELL), cj = Math.floor(z / CELL);
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      const arr = L.hash.get((ci + a) + ',' + (cj + b));
+      if (!arr) continue;
+      for (const o of arr) {
+        if (o.kind === 'tower') continue;
+        const dx = x - o.x, dz = z - o.z;
+        const lx = dx * o.cs - dz * o.sn, lz = dx * o.sn + dz * o.cs;
+        if (Math.abs(lx) < o.hw && Math.abs(lz) < o.hd) return true;
+      }
+    }
+    return false;
+  };
+  const footprintFree = (x, z, w, d, ry) => {
+    const c = Math.cos(ry), s = Math.sin(ry);
+    const nx = Math.max(2, Math.ceil(w / 3.5)), nz = Math.max(2, Math.ceil(d / 3.5));
+    for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++) {
+      const lx = -w / 2 + 0.5 + (w - 1) * i / nx, lz = -d / 2 + 0.5 + (d - 1) * j / nz;
+      if (pointBlocked(x + lx * c + lz * s, z - lx * s + lz * c)) return false;
+    }
+    return true;
+  };
+
+  // ---------- 집 한 채 만들기 (유럽 옛 마을: 흰 벽, 나무 뼈대, 기와지붕, 속이 빈 방) ----------
+  // 집은 '자기 좌표'(가운데가 0,0 / 문이 +z쪽)로 설계하고, ry 만큼 돌려서 놓아요.
+  function buildHouse(o) {
+    const w = o.w, d = o.d || 26, x = o.x, z = o.z, ry = o.ry || 0;
+    const c0 = Math.cos(ry), s0 = Math.sin(ry);
+    const WX = (lx, lz) => x + lx * c0 + lz * s0, WZ = (lx, lz) => z - lx * s0 + lz * c0;
+    const put = (list, lx, y, lz, sx, sy, sz, col) => {
+      const e = { x: WX(lx, lz), y, z: WZ(lx, lz), sx, sy, sz, ry };
+      if (col !== undefined) e.c = col;
+      list.push(e); return e;
+    };
+    const h = o.h !== undefined ? o.h : pick(HEIGHT_TIERS) + rand(-0.8, 0.8);
+    const roofH = o.roofH !== undefined ? o.roofH : rand(3.8, 5.4);
+    const top = h + 2.2;
+    const frontZ = d / 2, fzc = d / 2 - WALL_T / 2, bzc = -(d / 2 - WALL_T / 2);
+    const fw = (w - DOOR_W) / 2;
+    const wc = pick(wallColors);
+    const hs = { kind: 'house', x, z, ry, cs: c0, sn: s0, hw: w / 2, hd: d / 2, w, d, h, roofH, top, citizen: null,
+                 doorX: WX(0, frontZ + 2.2), doorZ: WZ(0, frontZ + 2.2), inner: null, theme: '', walls: [], rad: Math.hypot(w / 2, d / 2) + 1 };
+
+    const R = (rx, rz, hw, hd, y0) => hs.walls.push({ x: rx, z: rz, hw, hd, y0, y1: top });
+    R(0, bzc, w / 2, WALL_T / 2, 0);
+    R(-(w / 2 - WALL_T / 2), 0, WALL_T / 2, d / 2, 0);
+    R(w / 2 - WALL_T / 2, 0, WALL_T / 2, d / 2, 0);
+    R(-DOOR_W / 2 - fw / 2, fzc, fw / 2, WALL_T / 2, 0);
+    R(DOOR_W / 2 + fw / 2, fzc, fw / 2, WALL_T / 2, 0);
+    R(0, fzc, DOOR_W / 2, WALL_T / 2, DOOR_H);   // 문 위쪽 벽
+
+    // 보이는 벽 (순서가 중요해요: 안에 들어가면 이 여섯 개가 낮아져요)
+    hs.wallStart = D.WALL.length;
+    put(D.WALL, 0, h / 2, bzc, w, h, WALL_T, wc);
+    put(D.WALL, -(w / 2 - WALL_T / 2), h / 2, 0, WALL_T, h, d, wc);
+    put(D.WALL, w / 2 - WALL_T / 2, h / 2, 0, WALL_T, h, d, wc);
+    put(D.WALL, -DOOR_W / 2 - fw / 2, h / 2, fzc, fw, h, WALL_T, wc);
+    put(D.WALL, DOOR_W / 2 + fw / 2, h / 2, fzc, fw, h, WALL_T, wc);
+    put(D.WALL, 0, (DOOR_H + h) / 2, fzc, DOOR_W, h - DOOR_H, WALL_T, wc);
+
+    hs.floorIdx = D.FLOOR.length;
+    put(D.FLOOR, 0, 0.06, 0, w - 2 * WALL_T, 0.12, d - 2 * WALL_T, pick(floorColors));
+    hs.ceilIdx = D.CEIL.length;
+    put(D.CEIL, 0, h - 0.15, 0, w - 2 * WALL_T, 0.3, d - 2 * WALL_T, 0xb99a6b);
+    hs.roofIdx = D.ROOF.length;
+    put(D.ROOF, 0, h, 0, w + 0.6, roofH, d + 1.6, pick(roofColors));
+    if (Math.random() < 0.6) put(D.CHIM, rand(-w / 4, w / 4), h + roofH * 0.5 + 2, rand(-4, 4), 2.2, 4.5, 2.2);
+
+    // 앞면 꾸미기: 돌 밑단, 문틀, 닫힌 문, 창문, 나무 뼈대
+    const sc0 = pick(baseColors);
+    put(D.BASE, -DOOR_W / 2 - fw / 2, 1.6, frontZ + 0.12, fw + 0.2, 3.2, 0.3, sc0);
+    put(D.BASE, DOOR_W / 2 + fw / 2, 1.6, frontZ + 0.12, fw + 0.2, 3.2, 0.3, sc0);
+    put(D.FRAME, -DOOR_W / 2 - 0.2, DOOR_H / 2, frontZ + 0.25, 0.5, DOOR_H, 0.9);
+    put(D.FRAME, DOOR_W / 2 + 0.2, DOOR_H / 2, frontZ + 0.25, 0.5, DOOR_H, 0.9);
+    put(D.FRAME, 0, DOOR_H + 0.25, frontZ + 0.25, DOOR_W + 1.1, 0.5, 0.9);
+    put(D.FRAME, -(w / 2 - 0.35), h / 2, frontZ + 0.15, 0.7, h, 0.5);
+    put(D.FRAME, w / 2 - 0.35, h / 2, frontZ + 0.15, 0.7, h, 0.5);
+    put(D.FRAME, 0, h - 1.2, frontZ + 0.15, w, 0.7, 0.5);
+    put(D.DOOR, 0, (DOOR_H - 0.1) / 2, fzc + 0.05, DOOR_W - 0.1, DOOR_H - 0.1, 0.32, pick(doorColors)); // 닫힌 문 (통과 가능)
+    put(D.FRAME, DOOR_W / 2 - 0.9, 2.9, frontZ + 0.2, 0.4, 0.4, 0.5);
+    if (fw > 3.2) {
+      const wx = DOOR_W / 2 + fw / 2;
+      for (const sg of [-1, 1]) {
+        put(D.WIN, sg * wx, 7.6, frontZ + 0.1, 2.2, 2.6, 0.4);
+        if (h > 14.5) put(D.WIN, sg * wx, h - 3.2, frontZ + 0.1, 2.2, 2.4, 0.4);
+      }
+    }
+
+    // 가구 (집마다 다른 방 모양)
+    const hwI = w / 2 - WALL_T, back = d - WALL_T - 1.3;
+    const add = (lx, u, sx, sy, sz, c, y0) => put(D.FURN, lx, (y0 || 0) + sy / 2 + 0.12, frontZ - u, sx, sy, sz, c);
+    const theme = o.theme || pick(['bedroom', 'kitchen', 'workshop', 'storage', 'living']);
+    hs.theme = theme;
+    if (theme === 'bedroom') {
+      add(-hwI + 2.4, back - 1.6, 4.2, 1.3, 2.5, pick(bedColors));
+      add(-hwI + 1.0, back - 1.6, 1.0, 0.5, 1.8, 0xffffff, 1.3);
+      add(hwI - 1.3, back - 0.3, 2.4, 5.2, 1.6, 0x7a5230);
+      add(hwI - 2.5, back - 7, 2.8, 0.1, 3.8, pick(rugColors));
+    } else if (theme === 'kitchen') {
+      add(0, back - 5, 4.2, 1.7, 2.6, 0x8a5a33);
+      add(-2.9, back - 5, 1.2, 1.3, 1.2, 0x6b4a2d); add(2.9, back - 5, 1.2, 1.3, 1.2, 0x6b4a2d);
+      add(0, back - 7.7, 1.2, 1.3, 1.2, 0x6b4a2d); add(0, back - 2.3, 1.2, 1.3, 1.2, 0x6b4a2d);
+      add(-hwI + 1.4, back - 9, 2.4, 2.8, 3.2, 0x555a60);
+      add(hwI - 1.0, back - 1.0, 1.8, 3.2, 3.8, 0x7a5230);
+    } else if (theme === 'workshop') {
+      add(hwI - 2.0, back - 3, 5.2, 1.9, 2.0, 0x8a6a3a);
+      add(-hwI + 1.6, back - 1.4, 2.4, 2.4, 2.4, 0xa07a45);
+      add(-hwI + 1.6, back - 4.2, 2.0, 2.0, 2.0, 0x9a7440);
+      add(-hwI + 1.6, back - 1.4, 1.6, 1.6, 1.6, 0xb58a50, 2.4);
+      add(hwI - 1.4, back - 9, 1.8, 2.5, 1.8, 0x6b4a2d);
+    } else if (theme === 'storage') {
+      for (let i = 0; i < 5; i++) {
+        const sd = (i % 2 ? 1 : -1), lx = sd * rand(2.6, Math.max(2.7, hwI - 1.4));
+        const s = rand(1.6, 2.6);
+        add(lx, back - rand(0.8, 12), s, s, s, pick([0xa07a45, 0x9a7440, 0xb58a50, 0x8a6a3a]));
+      }
+      add(0, back - 0.6, Math.min(hwI * 2 - 1, 7), 5.6, 1.0, 0x5d3f2a);
+    } else {
+      add(0, back - 1.3, Math.min(6.5, hwI * 2 - 1.5), 1.9, 2.2, pick(bedColors));
+      add(0, back - 6, 3.0, 1.1, 2.0, 0x7a5230);
+      add(hwI - 0.8, back - 10, 1.2, 5.8, 5.0, 0x5d3f2a);
+      add(0, back - 6, 5.0, 0.1, 3.6, pick(rugColors));
+    }
+    // 숨은 시민이 있을 자리: 문에서 먼 방 안쪽
+    const lx = rand(-1, 1) * Math.max(0.5, hwI - 2), lz = frontZ - (d - 4.5);
+    hs.inner = { x: WX(lx, lz), z: WZ(lx, lz) };
+    L.houses.push(hs); hashAdd(hs);
+    return hs;
+  }
+
+  // 안에 못 들어가는 단단한 건물 (대피소, 성, 요새 벽...)
+  function buildSolid(o) {
+    const x = o.x, z = o.z, w = o.w, d = o.d, h = o.h, ry = o.ry || 0, roofH = o.roofH || 0;
+    if (o.decor) { // 눈에 보이기만 하는 장식 (충돌·줄 걸기 없음)
+      D.SBOX.push({ x, y: h / 2, z, sx: w, sy: h, sz: d, ry, c: o.color !== undefined ? o.color : 0xb9b3a6 });
+      return null;
+    }
+    const top = h + (roofH ? 2.2 : 0);
+    const hs = { kind: 'solid', x, z, ry, cs: Math.cos(ry), sn: Math.sin(ry), hw: w / 2, hd: d / 2, w, d, h, roofH, top, citizen: null,
+                 doorX: x, doorZ: z, inner: null, theme: '', walls: [{ x: 0, z: 0, hw: w / 2, hd: d / 2, y0: 0, y1: top }],
+                 rad: Math.hypot(w / 2, d / 2) + 1, color: o.color };
+    D.SBOX.push({ x, y: h / 2, z, sx: w, sy: h, sz: d, ry, c: o.color !== undefined ? o.color : 0xb9b3a6 });
+    if (roofH) D.SROOF.push({ x, y: h, z, sx: w + 2, sy: roofH, sz: d + 2, ry, c: o.roofColor !== undefined ? o.roofColor : 0x3f6fa8 });
+    L.houses.push(hs); hashAdd(hs);
+    return hs;
+  }
+
+  function buildTower(o) {
+    const t = { kind: 'tower', x: o.x, z: o.z, r: o.r, h: o.h, top: o.h, rad: o.r + 1 };
+    D.CYL.push({ x: o.x, y: o.h / 2, z: o.z, sx: o.r, sy: o.h, sz: o.r, c: o.color !== undefined ? o.color : 0xa9a398 });
+    if (o.coneH) D.CONE.push({ x: o.x, y: o.h + o.coneH / 2, z: o.z, sx: o.r * 1.18, sy: o.coneH, sz: o.r * 1.18, c: o.coneColor !== undefined ? o.coneColor : 0x55606b });
+    L.towers.push(t); hashAdd(t);
+    return t;
+  }
+
+  // ---------- 맵 설계 도구 (maps/*.js 의 build(m) 에서 쓰는 것들) ----------
+  const m = {
+    rand, pick, clamp, HEIGHT_TIERS, ROAD_W: 14, DOOR_W, WALL_T,
+    // 기본 설정
+    setup(o) {
+      if (o.sky !== undefined) L.sky = o.sky;
+      if (o.fog) L.fog = o.fog;
+      if (o.extent) L.extent = o.extent;
+      if (o.bounds) L.bounds = o.bounds;       // { kind:'rect', hx, hz } 또는 { kind:'circle', r }
+      if (o.ground) L.ground = o.ground;       // 돌길 바닥 모양
+      if (o.groundColor !== undefined) L.groundColor = o.groundColor;
+      if (o.outerColor !== undefined) L.outerColor = o.outerColor;
+      if (o.roads) L.roads = Object.assign(L.roads, o.roads);
+      if (o.titanHunt !== undefined) L.titanHunt = o.titanHunt; // 0~1: 거인이 나 쪽으로 걸어올 확률
+      if (o.config) Object.assign(L.config, o.config);
+      if (o.start) L.start = o.start;
+    },
+    // 길 만들기: 교차로(node)와 길(edge). 거인과 시민은 이 길을 따라 움직여요.
+    node(x, z, opts) { L.nodes.push(Object.assign({ x, z, adj: [] }, opts || {})); return L.nodes.length - 1; },
+    edge(a, b, opts) {
+      const A = L.nodes[a], B = L.nodes[b];
+      const len = Math.hypot(B.x - A.x, B.z - A.z);
+      if (len < 0.01) return;
+      const e = Object.assign({ a, b, len, ux: (B.x - A.x) / len, uz: (B.z - A.z) / len, w: 14 }, opts || {});
+      L.edges.push(e);
+      A.adj.push({ to: b, len }); B.adj.push({ to: a, len });
+    },
+    path(ids, opts) { for (let i = 0; i + 1 < ids.length; i++) m.edge(ids[i], ids[i + 1], opts); },
+    // 집 (돌려서 놓을 수 있어요. ry=0이면 문이 +z쪽(남쪽)). 겹치면 null을 돌려줘요.
+    house(o) {
+      if (o.check !== false && !footprintFree(o.x, o.z, o.w, o.d || 26, o.ry || 0)) return null;
+      return buildHouse(o);
+    },
+    building(o) { return buildSolid(o); },
+    tower(o) { return buildTower(o); },
+    // 둥근 성벽. gates: [{ a: 각도(0=남쪽, 90°=동쪽), w: 문 너비 }]
+    ring(o) {
+      const cx = o.cx || 0, cz = o.cz || 0, t = o.t || 10;
+      const rg = { cx, cz, r: o.r, r0: o.r - t / 2, r1: o.r + t / 2, h: o.h || 46, gates: [], t };
+      const tr = Math.max(7, t * 0.7);
+      for (const g of (o.gates || [])) {
+        const hw = (g.w || 24) / 2;
+        const gate = { a: g.a, hw, gh: hw + tr };
+        rg.gates.push(gate);
+        for (const sgn of [-1, 1]) {
+          const aa = g.a + sgn * (hw + tr) / o.r;
+          buildTower({ x: cx + Math.sin(aa) * o.r, z: cz + Math.cos(aa) * o.r, r: tr, h: rg.h + 8, coneH: 9, color: 0x9a948a, coneColor: o.towerRoof });
+        }
+      }
+      L.rings.push(rg);
+      if (o.bastions) { // 성벽 둘레의 둥근 탑들 (모양을 울퉁불퉁하게 해요)
+        const br = o.bastionR || 13;
+        for (let i = 0; i < o.bastions; i++) {
+          const a = (o.bastionPhase || 0) + i * Math.PI * 2 / o.bastions;
+          if (rg.gates.some(g => Math.abs(angDiff(a, g.a)) * o.r < g.gh + br + 4)) continue;
+          buildTower({ x: cx + Math.sin(a) * o.r, z: cz + Math.cos(a) * o.r, r: br, h: rg.h + 4, coneH: 7, color: 0x9a948a, coneColor: o.towerRoof });
+        }
+      }
+      return rg;
+    },
+    // 대피소 (구출한 시민을 데려오는 곳)
+    shelter(x, z) {
+      L.shelter = { x, z, r: 26 };
+      const hallZ = z - 16, hallH = 12;
+      D.SBOX.push({ x, y: 0.05, z, sx: BW, sy: 0.1, sz: BW, ry: 0, c: 0xcfc8b8 });
+      buildSolid({ x, z: hallZ, w: 40, d: 16, h: hallH, roofH: 6, color: 0xb9b3a6, roofColor: 0x3f6fa8 });
+      D.SBOX.push({ x, y: hallH + 9, z: hallZ, sx: 0.5, sy: 12, sz: 0.5, ry: 0, c: 0x5b3a29 });
+      D.SBOX.push({ x: x + 3.7, y: hallH + 13, z: hallZ, sx: 7, sy: 4, sz: 0.3, ry: 0, c: 0x2f7bff });
+      D.SBOX.push({ x, y: 4, z: hallZ + 8.2, sx: 6, sy: 8, sz: 0.5, ry: 0, c: 0x4d3b2b });
+      L.zones.push({ x, z, hw: BW / 2 + 2, hd: BW / 2 + 2 });
+      if (!L.start) L.start = { x, z: z + 10 };
+    },
+    zone(o) { L.zones.push(o); },          // 집을 못 짓게 막는 구역 { x,z,r } 또는 { x,z,hw,hd }
+    free(x, z) { return !pointBlocked(x, z); },
+    // 장식
+    tree(x, z, s) { L.trees.push({ x, z, s: s || rand(0.8, 1.5) }); },
+    forest(o) { // 숲: 고리 모양 영역 안에 나무를 흩뿌려요 { cx,cz,r0,r1,count, a0,a1 }
+      const cx = o.cx || 0, cz = o.cz || 0;
+      let made = 0, tries = 0;
+      while (made < o.count && tries < o.count * 6) {
+        tries++;
+        const a = o.a0 !== undefined ? rand(o.a0, o.a1) : rand(0, Math.PI * 2), r = rand(o.r0, o.r1);
+        const x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;
+        if (!inBounds(x, z, 6)) continue;
+        let bad = false;
+        for (const e of L.edges) if (segDist(x, z, e) < e.w / 2 + 8) { bad = true; break; }
+        if (!bad) for (const zn of L.zones) {
+          if (zn.r !== undefined ? Math.hypot(x - zn.x, z - zn.z) < zn.r : (Math.abs(x - zn.x) < zn.hw + 6 && Math.abs(z - zn.z) < zn.hd + 6)) { bad = true; break; }
+        }
+        if (bad) continue;
+        L.trees.push({ x, z, s: rand(0.8, 1.7) }); made++;
+      }
+    },
+    mountain(o) { L.mountains.push({ x: o.x, z: o.z, r: o.r, h: o.h }); }
+  };
+
+  def.build(m);
+  if (!L.shelter) throw new Error('맵에 m.shelter(x, z) 로 대피소를 꼭 만들어 주세요');
+  if (L.nodes.length < 2 || !L.edges.length) throw new Error('맵에 길(m.node / m.edge)이 필요해요');
+  if (!L.start) L.start = { x: L.shelter.x, z: L.shelter.z + 10 };
+  for (const e of L.edges) { e.noCitizen = !!e.noCitizen; }
+  return L;
+}
+
+// ---------- 미니맵 바탕 그리기 (메뉴 미리보기와 게임 안 지도에 같이 써요) ----------
+function drawMapBase(g, size, L) {
+  const k = size / (L.extent * 2), E = L.extent;
+  const px = x => (x + E) * k, pz = z => (z + E) * k;
+  g.fillStyle = '#' + L.outerColor.toString(16).padStart(6, '0'); g.fillRect(0, 0, size, size);
+  g.fillStyle = '#8d8a82';
+  if (L.ground.kind === 'circle') { g.beginPath(); g.arc(px(L.ground.cx || 0), pz(L.ground.cz || 0), L.ground.r * k, 0, Math.PI * 2); g.fill(); }
+  else g.fillRect(px(-L.ground.hx), pz(-L.ground.hz), L.ground.hx * 2 * k, L.ground.hz * 2 * k);
+  g.lineCap = 'butt';
+  g.strokeStyle = '#6a665f';
+  for (const e of L.edges) {
+    const A = L.nodes[e.a], B = L.nodes[e.b];
+    g.lineWidth = Math.max(1, e.w * k);
+    g.beginPath(); g.moveTo(px(A.x), pz(A.z)); g.lineTo(px(B.x), pz(B.z)); g.stroke();
+  }
+  for (const h of L.houses) {
+    if (h.kind === 'house') g.fillStyle = '#cdbf9f';
+    else if (h.color === 0xcfc8b8) continue;
+    else g.fillStyle = '#9a8f7a';
+    g.save(); g.translate(px(h.x), pz(h.z)); g.rotate(-h.ry);
+    g.fillRect(-h.hw * k, -h.hd * k, h.w * k, h.d * k);
+    g.restore();
+  }
+  g.fillStyle = '#4a86c8';
+  g.fillRect(px(L.shelter.x - BW / 2), pz(L.shelter.z - BW / 2), BW * k, BW * k);
+  g.strokeStyle = '#4b4741';
+  for (const r of L.rings) {
+    g.lineWidth = Math.max(1.5, r.t * k);
+    g.beginPath();
+    let pen = false;
+    for (let a = 0; a <= Math.PI * 2 + 0.01; a += 0.03) {
+      const inGate = r.gates.some(gt => Math.abs(angDiff(a, gt.a)) * r.r < gt.gh);
+      if (inGate) { pen = false; continue; }
+      const x = px(r.cx + Math.sin(a) * r.r), y = pz(r.cz + Math.cos(a) * r.r);
+      if (!pen) { g.moveTo(x, y); pen = true; } else g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  g.fillStyle = '#6e695f';
+  for (const t of L.towers) { g.beginPath(); g.arc(px(t.x), pz(t.z), Math.max(1.2, t.r * k), 0, Math.PI * 2); g.fill(); }
+}
+
+// ---------- 설계도를 진짜 3D 세계로 만들기 ----------
+const HGT = 3.6;      // 내 몸 높이 (충돌 계산용)
+const houses = [];    // 집과 단단한 건물 (실제 게임에서 쓰는 목록)
+const solidsHash = new Map();
+const SHELTER = { x: 0, z: 0, r: 26 };
+let LAY = null;       // 지금 쓰고 있는 맵 설계도
+let ringsRT = [];
+const GRAPH = { nodes: [], edges: [], spawn: [] };
+let BOUNDS = { kind: 'rect', hx: 300, hz: 300 };
+
+function eachNear(x, z, fn) {
+  const ci = Math.floor(x / CELL), cj = Math.floor(z / CELL);
+  for (let a = -1; a <= 1; a++) {
+    for (let b = -1; b <= 1; b++) {
+      const arr = solidsHash.get((ci + a) + ',' + (cj + b));
+      if (arr) for (const h of arr) fn(h);
+    }
+  }
+}
+function clampBounds(o, mg) {
+  const b = BOUNDS;
+  if (b.kind === 'circle') {
+    const cx = b.cx || 0, cz = b.cz || 0, d = Math.hypot(o.x - cx, o.z - cz), R = b.r - mg;
+    if (d > R) { o.x = cx + (o.x - cx) * R / d; o.z = cz + (o.z - cz) * R / d; }
+  } else {
+    o.x = clamp(o.x, -b.hx + mg, b.hx - mg); o.z = clamp(o.z, -b.hz + mg, b.hz - mg);
+  }
+}
+function toLocal(h, x, z) { const dx = x - h.x, dz = z - h.z; return { x: dx * h.cs - dz * h.sn, z: dx * h.sn + dz * h.cs }; }
+
+function cobbleTexture(sizeW) {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d');
@@ -169,21 +585,11 @@ function cobbleTexture() {
   }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set((HALF * 2) / 16, (HALF * 2) / 16);
+  t.repeat.set(sizeW / 16, sizeW / 16);
   t.anisotropy = 8;
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), new THREE.MeshLambertMaterial({ map: cobbleTexture() }));
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
-
-const outer = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshLambertMaterial({ color: 0x5a9a48 }));
-outer.rotation.x = -Math.PI / 2;
-outer.position.y = -0.15;
-scene.add(outer);
-
 function brickTexture(rx, ry) {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
@@ -203,173 +609,6 @@ function brickTexture(rx, ry) {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const WALL_H = 46;
-function addWall(x, z, w, d) {
-  const mat = new THREE.MeshLambertMaterial({ map: brickTexture(Math.max(w, d) / 14, WALL_H / 14) });
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, WALL_H, d), mat);
-  m.position.set(x, WALL_H / 2, z);
-  m.castShadow = m.receiveShadow = true;
-  scene.add(m);
-}
-const WL = HALF * 2 + 20;
-addWall(0, -HALF - 5, WL, 10);
-addWall(0, HALF + 5, WL, 10);
-addWall(-HALF - 5, 0, 10, WL);
-addWall(HALF + 5, 0, 10, WL);
-
-// ---------- 집 만들기 (유럽 옛 마을: 흰 벽, 나무 뼈대, 기와지붕, 속이 빈 방) ----------
-// 집마다 벽(충돌 상자) 목록이 있고, 앞쪽 벽에는 문 구멍이 뚫려 있어요.
-const houses = [];
-const cells = new Map();
-function addHouseToCell(h) {
-  const key = h.ci + ',' + h.cj;
-  let arr = cells.get(key);
-  if (!arr) { arr = []; cells.set(key, arr); }
-  arr.push(h);
-}
-function eachNear(x, z, fn) {
-  const ci = Math.floor((x + HALF) / PITCH), cj = Math.floor((z + HALF) / PITCH);
-  for (let a = -1; a <= 1; a++) {
-    for (let b = -1; b <= 1; b++) {
-      const arr = cells.get((ci + a) + ',' + (cj + b));
-      if (arr) for (const h of arr) fn(h);
-    }
-  }
-}
-
-const wallColors = [0xf4ecd9, 0xeadfc6, 0xf1e3cf, 0xe3d6bd, 0xf0e6d2, 0xe7d5b5, 0xdfd2bb, 0xf7f1e3];
-const roofColors = [0xb4533a, 0xb4533a, 0xa24a33, 0xc0623f, 0x8d4a35, 0x6e5546, 0x55606b];
-const baseColors = [0x9b968c, 0xa9a398, 0x8d887f];
-const doorColors = [0x6b4423, 0x4d3b2b, 0x7a5230, 0x5b3a29];
-const floorColors = [0x9a7a52, 0x8d6e48, 0xa6865c, 0x7f6644];
-const bedColors = [0xc0504d, 0x4f81bd, 0x9bbb59, 0xf2a65a];
-const rugColors = [0xb04a4a, 0x4a6fb0, 0x6a9a5a, 0xc89a3a];
-const HEIGHT_TIERS = [9.5, 11.5, 13.5, 15.5, 17.5]; // 집 높이 단계 (조금씩 달라요)
-
-const D_BASE = [], D_WALL = [], D_ROOF = [], D_CEIL = [], D_CHIM = [], D_DOOR = [], D_WIN = [], D_FRAME = [], D_FLOOR = [], D_FURN = [];
-
-function furnish(hs) { // 집 안 가구 (집마다 다른 방 모양)
-  const { x, z, side, w, d } = hs;
-  const frontZ = z + side * d / 2;
-  const hwI = w / 2 - WALL_T;        // 방 안쪽 가로 반폭
-  const back = d - WALL_T - 1.3;     // 안쪽 깊이
-  const add = (lx, u, sx, sy, sz, c, y0) => {
-    D_FURN.push({ x: x + lx, y: (y0 || 0) + sy / 2 + 0.12, z: frontZ - side * u, sx, sy, sz, c });
-  };
-  const theme = pick(['bedroom', 'kitchen', 'workshop', 'storage', 'living']);
-  hs.theme = theme;
-  if (theme === 'bedroom') {
-    add(-hwI + 2.4, back - 1.6, 4.2, 1.3, 2.5, pick(bedColors));
-    add(-hwI + 1.0, back - 1.6, 1.0, 0.5, 1.8, 0xffffff, 1.3);
-    add(hwI - 1.3, back - 0.3, 2.4, 5.2, 1.6, 0x7a5230);
-    add(hwI - 2.5, back - 7, 2.8, 0.1, 3.8, pick(rugColors));
-  } else if (theme === 'kitchen') {
-    add(0, back - 5, 4.2, 1.7, 2.6, 0x8a5a33);
-    add(-2.9, back - 5, 1.2, 1.3, 1.2, 0x6b4a2d); add(2.9, back - 5, 1.2, 1.3, 1.2, 0x6b4a2d);
-    add(0, back - 7.7, 1.2, 1.3, 1.2, 0x6b4a2d); add(0, back - 2.3, 1.2, 1.3, 1.2, 0x6b4a2d);
-    add(-hwI + 1.4, back - 9, 2.4, 2.8, 3.2, 0x555a60);
-    add(hwI - 1.0, back - 1.0, 1.8, 3.2, 3.8, 0x7a5230);
-  } else if (theme === 'workshop') {
-    add(hwI - 2.0, back - 3, 5.2, 1.9, 2.0, 0x8a6a3a);
-    add(-hwI + 1.6, back - 1.4, 2.4, 2.4, 2.4, 0xa07a45);
-    add(-hwI + 1.6, back - 4.2, 2.0, 2.0, 2.0, 0x9a7440);
-    add(-hwI + 1.6, back - 1.4, 1.6, 1.6, 1.6, 0xb58a50, 2.4);
-    add(hwI - 1.4, back - 9, 1.8, 2.5, 1.8, 0x6b4a2d);
-  } else if (theme === 'storage') {
-    const n = 5;
-    for (let i = 0; i < n; i++) {
-      const sd = (i % 2 ? 1 : -1), lx = sd * rand(2.6, Math.max(2.7, hwI - 1.4));
-      const s = rand(1.6, 2.6);
-      add(lx, back - rand(0.8, 12), s, s, s, pick([0xa07a45, 0x9a7440, 0xb58a50, 0x8a6a3a]));
-    }
-    add(0, back - 0.6, Math.min(hwI * 2 - 1, 7), 5.6, 1.0, 0x5d3f2a);
-  } else {
-    add(0, back - 1.3, Math.min(6.5, hwI * 2 - 1.5), 1.9, 2.2, pick(bedColors));
-    add(0, back - 6, 3.0, 1.1, 2.0, 0x7a5230);
-    add(hwI - 0.8, back - 10, 1.2, 5.8, 5.0, 0x5d3f2a);
-    add(0, back - 6, 5.0, 0.1, 3.6, pick(rugColors));
-  }
-  // 숨은 시민이 있을 자리: 문에서 먼 방 안쪽
-  hs.inner = { x: x + rand(-1, 1) * Math.max(0.5, hwI - 2), z: frontZ - side * (d - 4.5) };
-}
-
-for (let i = 0; i < N; i++) {
-  for (let j = 0; j < N; j++) {
-    if (i === SI && j === SJ) continue; // 대피소 자리는 비워 둬요
-    const bx = blockCenter(i), bz = blockCenter(j);
-    for (const side of [-1, 1]) {            // -1: 북쪽 줄(문이 -z쪽), +1: 남쪽 줄(문이 +z쪽)
-      const cnt = Math.random() < 0.7 ? 4 : (Math.random() < 0.5 ? 3 : 5);
-      const raw = []; let sum = 0;
-      for (let q = 0; q < cnt; q++) { const r = rand(0.8, 1.25); raw.push(r); sum += r; }
-      let cx = bx - BW / 2;
-      for (let q = 0; q < cnt; q++) {
-        const w = raw[q] / sum * BW;         // 옆집과 딱 붙도록 폭을 꽉 채워요
-        const x = cx + w / 2; cx += w;
-        const d = 26, z = bz + side * 15;
-        const h = pick(HEIGHT_TIERS) + rand(-0.8, 0.8), roofH = rand(3.8, 5.4);
-        const top = h + 2.2;
-        const frontZ = z + side * d / 2;
-        const fzc = z + side * (d / 2 - WALL_T / 2);   // 앞벽 가운데
-        const bzc = z - side * (d / 2 - WALL_T / 2);   // 뒷벽 가운데
-        const fw = (w - DOOR_W) / 2;                   // 문 옆 벽 폭
-        const wc = pick(wallColors);
-        const hs = { x, z, hw: w / 2, hd: d / 2, w, d, h, roofH, top, side, ci: i, cj: j, shelter: false, citizen: null,
-                     doorX: x, doorZ: frontZ + side * 2.2, inner: null, theme: '', walls: [] };
-
-        // 충돌용 벽 상자
-        const R = (rx, rz, hw, hd, y0) => hs.walls.push({ x: rx, z: rz, hw, hd, y0, y1: top });
-        R(x, bzc, w / 2, WALL_T / 2, 0);
-        R(x - (w / 2 - WALL_T / 2), z, WALL_T / 2, d / 2, 0);
-        R(x + (w / 2 - WALL_T / 2), z, WALL_T / 2, d / 2, 0);
-        R(x - DOOR_W / 2 - fw / 2, fzc, fw / 2, WALL_T / 2, 0);
-        R(x + DOOR_W / 2 + fw / 2, fzc, fw / 2, WALL_T / 2, 0);
-        R(x, fzc, DOOR_W / 2, WALL_T / 2, DOOR_H);   // 문 위쪽 벽
-
-        // 보이는 벽 (순서가 중요해요: 안에 들어가면 이 여섯 개가 낮아져요)
-        hs.wallStart = D_WALL.length;
-        D_WALL.push({ x, y: h / 2, z: bzc, sx: w, sy: h, sz: WALL_T, c: wc });
-        D_WALL.push({ x: x - (w / 2 - WALL_T / 2), y: h / 2, z, sx: WALL_T, sy: h, sz: d, c: wc });
-        D_WALL.push({ x: x + (w / 2 - WALL_T / 2), y: h / 2, z, sx: WALL_T, sy: h, sz: d, c: wc });
-        D_WALL.push({ x: x - DOOR_W / 2 - fw / 2, y: h / 2, z: fzc, sx: fw, sy: h, sz: WALL_T, c: wc });
-        D_WALL.push({ x: x + DOOR_W / 2 + fw / 2, y: h / 2, z: fzc, sx: fw, sy: h, sz: WALL_T, c: wc });
-        D_WALL.push({ x, y: (DOOR_H + h) / 2, z: fzc, sx: DOOR_W, sy: h - DOOR_H, sz: WALL_T, c: wc });
-
-        hs.floorIdx = D_FLOOR.length;
-        D_FLOOR.push({ x, y: 0.06, z, sx: w - 2 * WALL_T, sy: 0.12, sz: d - 2 * WALL_T, c: pick(floorColors) });
-        hs.ceilIdx = D_CEIL.length;
-        D_CEIL.push({ x, y: h - 0.15, z, sx: w - 2 * WALL_T, sy: 0.3, sz: d - 2 * WALL_T, c: 0xb99a6b });
-        hs.roofIdx = D_ROOF.length;
-        D_ROOF.push({ x, y: h, z, sx: w + 0.6, sy: roofH, sz: d + 1.6, c: pick(roofColors) });
-        if (Math.random() < 0.6) {
-          D_CHIM.push({ x: x + rand(-w / 4, w / 4), y: h + roofH * 0.5 + 2, z: z + rand(-4, 4), sx: 2.2, sy: 4.5, sz: 2.2 });
-        }
-
-        // 앞면 꾸미기: 돌 밑단, 문틀, 열린 문, 창문, 나무 뼈대
-        const sc0 = pick(baseColors);
-        D_BASE.push({ x: x - DOOR_W / 2 - fw / 2, y: 1.6, z: frontZ + side * 0.12, sx: fw + 0.2, sy: 3.2, sz: 0.3, c: sc0 });
-        D_BASE.push({ x: x + DOOR_W / 2 + fw / 2, y: 1.6, z: frontZ + side * 0.12, sx: fw + 0.2, sy: 3.2, sz: 0.3, c: sc0 });
-        D_FRAME.push({ x: x - DOOR_W / 2 - 0.2, y: DOOR_H / 2, z: frontZ + side * 0.25, sx: 0.5, sy: DOOR_H, sz: 0.9 });
-        D_FRAME.push({ x: x + DOOR_W / 2 + 0.2, y: DOOR_H / 2, z: frontZ + side * 0.25, sx: 0.5, sy: DOOR_H, sz: 0.9 });
-        D_FRAME.push({ x, y: DOOR_H + 0.25, z: frontZ + side * 0.25, sx: DOOR_W + 1.1, sy: 0.5, sz: 0.9 });
-        D_FRAME.push({ x: x - (w / 2 - 0.35), y: h / 2, z: frontZ + side * 0.15, sx: 0.7, sy: h, sz: 0.5 });
-        D_FRAME.push({ x: x + (w / 2 - 0.35), y: h / 2, z: frontZ + side * 0.15, sx: 0.7, sy: h, sz: 0.5 });
-        D_FRAME.push({ x, y: h - 1.2, z: frontZ + side * 0.15, sx: w, sy: 0.7, sz: 0.5 });
-        D_DOOR.push({ x, y: (DOOR_H - 0.1) / 2, z: fzc + side * 0.05, sx: DOOR_W - 0.1, sy: DOOR_H - 0.1, sz: 0.32, c: pick(doorColors) }); // 닫힌 문 (통과 가능)
-        D_FRAME.push({ x: x + DOOR_W / 2 - 0.9, y: 2.9, z: frontZ + side * 0.2, sx: 0.4, sy: 0.4, sz: 0.5 });
-        if (fw > 3.2) {
-          const wx = DOOR_W / 2 + fw / 2;
-          for (const sg of [-1, 1]) {
-            D_WIN.push({ x: x + sg * wx, y: 7.6, z: frontZ + side * 0.1, sx: 2.2, sy: 2.6, sz: 0.4 });
-            if (h > 14.5) D_WIN.push({ x: x + sg * wx, y: h - 3.2, z: frontZ + side * 0.1, sx: 2.2, sy: 2.4, sz: 0.4 });
-          }
-        }
-        furnish(hs);
-        houses.push(hs);
-        addHouseToCell(hs);
-      }
-    }
-  }
-}
 
 // 지붕 모양(삼각기둥)
 function roofGeometry() {
@@ -387,15 +626,17 @@ function roofGeometry() {
 }
 
 const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion(), _c = new THREE.Color();
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 function composeAt(a) {
-  _p.set(a.x, a.y, a.z); _s.set(a.sx, a.sy, a.sz);
+  _p.set(a.x, a.y, a.z); _s.set(a.sx, a.sy, a.sz); _q.setFromAxisAngle(Y_AXIS, a.ry || 0);
   return new THREE.Matrix4().compose(_p, _q, _s);
 }
 function makeInst(geo, list, mat, cast) {
+  if (!list.length) return null;
   const m = new THREE.InstancedMesh(geo, mat, list.length);
   for (let i = 0; i < list.length; i++) {
     const a = list[i];
-    _p.set(a.x, a.y, a.z); _s.set(a.sx, a.sy, a.sz);
+    _p.set(a.x, a.y, a.z); _s.set(a.sx, a.sy, a.sz); _q.setFromAxisAngle(Y_AXIS, a.ry || 0);
     _m.compose(_p, _q, _s);
     m.setMatrixAt(i, _m);
     if (a.c !== undefined) { _c.setHex(a.c); m.setColorAt(i, _c); }
@@ -406,35 +647,12 @@ function makeInst(geo, list, mat, cast) {
   scene.add(m);
   return m;
 }
-const unitBox = new THREE.BoxGeometry(1, 1, 1);
-const roofGeo = roofGeometry();
-const white = () => new THREE.MeshLambertMaterial({ color: 0xffffff });
-makeInst(unitBox, D_BASE, white(), false);
-const wallMesh = makeInst(unitBox, D_WALL, white(), true);
-const roofMesh = makeInst(roofGeo, D_ROOF, white(), true);
-const ceilMesh = makeInst(unitBox, D_CEIL, white(), false);
-makeInst(unitBox, D_CHIM, new THREE.MeshLambertMaterial({ color: 0x9b5a45 }), true);
-makeInst(unitBox, D_DOOR, white(), false);
-makeInst(unitBox, D_WIN, new THREE.MeshLambertMaterial({ color: 0x8fb6d0 }), false);
-makeInst(unitBox, D_FRAME, new THREE.MeshLambertMaterial({ color: 0x4a3426 }), false);
-makeInst(unitBox, D_FLOOR, white(), false);
-makeInst(unitBox, D_FURN, white(), false);
 
-// 집 안에 들어갔을 때 지붕·천장을 숨기고 벽을 낮추기 위한 행렬 저장
+let roofMesh = null, ceilMesh = null, wallMesh = null;
 const ZERO_M = new THREE.Matrix4().makeScale(0, 0, 0);
-for (const hs of houses) {
-  hs.roofM = composeAt(D_ROOF[hs.roofIdx]);
-  hs.ceilM = composeAt(D_CEIL[hs.ceilIdx]);
-  hs.wallM = []; hs.wallL = [];
-  for (let k = 0; k < 6; k++) {
-    const a = D_WALL[hs.wallStart + k];
-    hs.wallM.push(composeAt(a));
-    hs.wallL.push(k === 5 ? ZERO_M : composeAt({ x: a.x, y: LOW_WALL / 2, z: a.z, sx: a.sx, sy: LOW_WALL, sz: a.sz }));
-  }
-}
 let curHouse = null;
-function setCutaway(h) {
-  if (h === curHouse) return;
+function setCutaway(h) { // 집 안에 들어가면 지붕·천장이 사라지고 벽이 낮아져서 안이 보여요
+  if (h === curHouse || !wallMesh) return;
   if (curHouse) {
     roofMesh.setMatrixAt(curHouse.roofIdx, curHouse.roofM);
     ceilMesh.setMatrixAt(curHouse.ceilIdx, curHouse.ceilM);
@@ -451,72 +669,202 @@ function setCutaway(h) {
   wallMesh.instanceMatrix.needsUpdate = true;
 }
 
-// ---------- 대피소 (구출된 시민이 모이는 곳) ----------
-(function buildShelter() {
-  const { x: sx, z: sz } = SHELTER;
-  const plaza = new THREE.Mesh(new THREE.PlaneGeometry(BW, BW), new THREE.MeshLambertMaterial({ color: 0xcfc8b8 }));
-  plaza.rotation.x = -Math.PI / 2; plaza.position.set(sx, 0.05, sz); plaza.receiveShadow = true;
-  scene.add(plaza);
+function realizeWorld(L) {
+  LAY = L;
+  BOUNDS = L.bounds;
+  Object.assign(SHELTER, L.shelter);
+  scene.background = new THREE.Color(L.sky);
+  scene.fog = new THREE.Fog(L.sky, L.fog[0], L.fog[1]);
+  const D = L.D;
+
+  // 땅
+  const gnd = L.ground;
+  const gGeo = gnd.kind === 'circle' ? new THREE.CircleGeometry(gnd.r, 72) : new THREE.PlaneGeometry(gnd.hx * 2, gnd.hz * 2);
+  const gSize = gnd.kind === 'circle' ? gnd.r * 2 : Math.max(gnd.hx, gnd.hz) * 2;
+  const ground = new THREE.Mesh(gGeo, new THREE.MeshLambertMaterial({ map: cobbleTexture(gSize) }));
+  ground.rotation.x = -Math.PI / 2;
+  if (gnd.cx || gnd.cz) ground.position.set(gnd.cx || 0, 0, gnd.cz || 0);
+  ground.receiveShadow = true;
+  scene.add(ground);
+  const outer = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshLambertMaterial({ color: L.outerColor }));
+  outer.rotation.x = -Math.PI / 2;
+  outer.position.y = -0.15;
+  scene.add(outer);
+
+  // 길(눈에 보이게 그리는 맵만)
+  if (L.roads.draw) {
+    const list = [];
+    for (const e of L.edges) {
+      const A = L.nodes[e.a], B = L.nodes[e.b];
+      list.push({ x: (A.x + B.x) / 2, y: 0.04, z: (A.z + B.z) / 2, sx: e.w, sy: 0.08, sz: e.len + e.w * 0.6, ry: Math.atan2(e.ux, e.uz), c: L.roads.color });
+    }
+    makeInst(new THREE.BoxGeometry(1, 1, 1), list, new THREE.MeshLambertMaterial({ color: 0xffffff }), false);
+  }
+
+  // 둥근 성벽
+  ringsRT = L.rings;
+  for (const r of L.rings) {
+    const gates = r.gates.slice().sort((a, b) => a.a - b.a);
+    const arcs = [];
+    if (!gates.length) arcs.push([0, Math.PI * 2]);
+    else for (let i = 0; i < gates.length; i++) {
+      const g0 = gates[i], g1 = gates[(i + 1) % gates.length];
+      const s0 = g0.a + g0.gh / r.r;
+      let e0 = g1.a - g1.gh / r.r;
+      if (i === gates.length - 1) e0 += Math.PI * 2;
+      if (e0 > s0 + 0.01) arcs.push([s0, e0]);
+    }
+    for (const [a0, a1] of arcs) {
+      const len = (a1 - a0) * r.r, seg = Math.max(4, Math.ceil(len / 6));
+      const mat = () => new THREE.MeshLambertMaterial({ map: brickTexture(len / 14, r.h / 14), side: THREE.DoubleSide });
+      for (const rr of [r.r0, r.r1]) {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, r.h, seg, 1, true, a0, a1 - a0), mat());
+        w.position.set(r.cx, r.h / 2, r.cz); w.castShadow = w.receiveShadow = true;
+        scene.add(w);
+      }
+      const topM = new THREE.Mesh(new THREE.RingGeometry(r.r0, r.r1, seg, 1, a0 - Math.PI / 2, a1 - a0),
+                                  new THREE.MeshLambertMaterial({ color: 0x8a857b, side: THREE.DoubleSide }));
+      topM.rotation.x = -Math.PI / 2; topM.position.set(r.cx, r.h + 0.02, r.cz); topM.receiveShadow = true;
+      scene.add(topM);
+    }
+  }
+
+  // 집, 건물, 탑
+  const unitBox = new THREE.BoxGeometry(1, 1, 1);
+  const roofGeo = roofGeometry();
+  const white = () => new THREE.MeshLambertMaterial({ color: 0xffffff });
+  makeInst(unitBox, D.BASE, white(), false);
+  wallMesh = makeInst(unitBox, D.WALL, white(), true);
+  roofMesh = makeInst(roofGeo, D.ROOF, white(), true);
+  ceilMesh = makeInst(unitBox, D.CEIL, white(), false);
+  makeInst(unitBox, D.CHIM, new THREE.MeshLambertMaterial({ color: 0x9b5a45 }), true);
+  makeInst(unitBox, D.DOOR, white(), false);
+  makeInst(unitBox, D.WIN, new THREE.MeshLambertMaterial({ color: 0x8fb6d0 }), false);
+  makeInst(unitBox, D.FRAME, new THREE.MeshLambertMaterial({ color: 0x4a3426 }), false);
+  makeInst(unitBox, D.FLOOR, white(), false);
+  makeInst(unitBox, D.FURN, white(), false);
+  makeInst(unitBox, D.SBOX, white(), true);
+  makeInst(roofGeo, D.SROOF, white(), true);
+  makeInst(new THREE.CylinderGeometry(1, 1, 1, 18), D.CYL, white(), true);
+  makeInst(new THREE.ConeGeometry(1, 1, 18), D.CONE, white(), true);
+  // 나무와 산
+  for (const t of L.trees) {
+    D.TRUNK.push({ x: t.x, y: 2.2 * t.s, z: t.z, sx: 1.3 * t.s, sy: 4.4 * t.s, sz: 1.3 * t.s, c: 0x6b4a2d });
+    D.CROWN.push({ x: t.x, y: 4.4 * t.s + 5 * t.s, z: t.z, sx: 4.6 * t.s, sy: 10 * t.s, sz: 4.6 * t.s, c: 0x2f7d3a + ((Math.random() * 3 | 0) * 0x0a0600) });
+  }
+  makeInst(unitBox, D.TRUNK, white(), true);
+  makeInst(new THREE.ConeGeometry(1, 1, 7), D.CROWN, white(), true);
+  for (const mt of L.mountains) {
+    D.MTN.push({ x: mt.x, y: mt.h / 2, z: mt.z, sx: mt.r, sy: mt.h, sz: mt.r, ry: Math.random() * 3, c: 0x7b7f86 });
+    D.SNOW.push({ x: mt.x, y: mt.h * 0.86, z: mt.z, sx: mt.r * 0.32, sy: mt.h * 0.28, sz: mt.r * 0.32, ry: 0, c: 0xf2f5f8 });
+  }
+  makeInst(new THREE.ConeGeometry(1, 1, 7), D.MTN, white(), false);
+  makeInst(new THREE.ConeGeometry(1, 1, 7), D.SNOW, white(), false);
+
+  // 집 안에 들어갔을 때 지붕·천장을 숨기고 벽을 낮추기 위한 행렬 저장
+  for (const hs of L.houses) {
+    if (hs.kind !== 'house') continue;
+    hs.roofM = composeAt(D.ROOF[hs.roofIdx]);
+    hs.ceilM = composeAt(D.CEIL[hs.ceilIdx]);
+    hs.wallM = []; hs.wallL = [];
+    for (let k = 0; k < 6; k++) {
+      const a = D.WALL[hs.wallStart + k];
+      hs.wallM.push(composeAt(a));
+      hs.wallL.push(k === 5 ? ZERO_M : composeAt({ x: a.x, y: LOW_WALL / 2, z: a.z, sx: a.sx, sy: LOW_WALL, sz: a.sz, ry: a.ry }));
+    }
+  }
+  curHouse = null;
+
+  // 대피소 표시 (파란 원 + 빛기둥)
   const ring = new THREE.Mesh(new THREE.RingGeometry(SHELTER.r - 1.2, SHELTER.r, 64),
                               new THREE.MeshBasicMaterial({ color: 0x4aa8ff, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
-  ring.rotation.x = -Math.PI / 2; ring.position.set(sx, 0.1, sz);
+  ring.rotation.x = -Math.PI / 2; ring.position.set(SHELTER.x, 0.1, SHELTER.z);
   scene.add(ring);
-
-  const hallZ = sz - 16, hallH = 12;
-  const hall = new THREE.Mesh(new THREE.BoxGeometry(40, hallH, 16), new THREE.MeshLambertMaterial({ color: 0xb9b3a6 }));
-  hall.position.set(sx, hallH / 2, hallZ); hall.castShadow = hall.receiveShadow = true;
-  scene.add(hall);
-  const hroof = new THREE.Mesh(roofGeo, new THREE.MeshLambertMaterial({ color: 0x3f6fa8 }));
-  hroof.scale.set(42, 6, 18); hroof.position.set(sx, hallH, hallZ); hroof.castShadow = true;
-  scene.add(hroof);
-  const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 12, 0.5), new THREE.MeshLambertMaterial({ color: 0x5b3a29 }));
-  pole.position.set(sx, hallH + 9, hallZ); scene.add(pole);
-  const flag = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 0.3), new THREE.MeshLambertMaterial({ color: 0x2f7bff }));
-  flag.position.set(sx + 3.7, hallH + 13, hallZ); scene.add(flag);
-  const door = new THREE.Mesh(new THREE.BoxGeometry(6, 8, 0.5), new THREE.MeshLambertMaterial({ color: 0x4d3b2b }));
-  door.position.set(sx, 4, hallZ + 8.2); scene.add(door);
-
-  const top = hallH + 2.2;
-  const hs = { x: sx, z: hallZ, hw: 20, hd: 8, w: 40, d: 16, h: hallH, roofH: 6, top, side: 1, ci: SI, cj: SJ, shelter: true,
-               citizen: null, doorX: sx, doorZ: hallZ + 9, inner: null, theme: '',
-               walls: [{ x: sx, z: hallZ, hw: 20, hd: 8, y0: 0, y1: top }] };
-  houses.push(hs);
-  addHouseToCell(hs);
-
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 90, 12, 1, true),
                               new THREE.MeshBasicMaterial({ color: 0x55b0ff, transparent: true, opacity: 0.3, depthWrite: false }));
-  beam.position.set(sx, 45, sz + 6);
+  beam.position.set(SHELTER.x, 45, SHELTER.z + 6);
   scene.add(beam);
-})();
 
-// 구름
-const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-for (let i = 0; i < 16; i++) {
-  const g = new THREE.Group();
-  for (let j = 0; j < 3; j++) {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(rand(30, 60), rand(8, 14), rand(20, 36)), cloudMat);
-    b.position.set(rand(-25, 25), rand(-3, 3), rand(-12, 12));
-    g.add(b);
+  // 구름
+  const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (let i = 0; i < 16; i++) {
+    const g = new THREE.Group();
+    for (let j = 0; j < 3; j++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(rand(30, 60), rand(8, 14), rand(20, 36)), cloudMat);
+      b.position.set(rand(-25, 25), rand(-3, 3), rand(-12, 12));
+      g.add(b);
+    }
+    g.position.set(rand(-L.extent, L.extent), rand(140, 190), rand(-L.extent, L.extent));
+    scene.add(g);
   }
-  g.position.set(rand(-HALF, HALF), rand(140, 190), rand(-HALF, HALF));
-  scene.add(g);
+
+  // 게임에서 쓰는 목록 채우기
+  houses.length = 0;
+  solidsHash.clear();
+  for (const h of L.houses) houses.push(h);
+  for (const [k, v] of L.hash) solidsHash.set(k, v.slice());
+  GRAPH.nodes = L.nodes; GRAPH.edges = L.edges;
+  GRAPH.spawn = [];
+  L.nodes.forEach((n, i) => { if (n.spawn) GRAPH.spawn.push(i); });
+  if (!GRAPH.spawn.length) { // 표시가 없으면 가장 바깥쪽 길목에서 시작해요
+    const far = L.nodes.map((n, i) => ({ i, d: Math.hypot(n.x, n.z) })).sort((a, b) => b.d - a.d);
+    GRAPH.spawn = far.slice(0, Math.max(4, Math.floor(far.length * 0.15))).map(o => o.i);
+  }
 }
 
 // ---------- 충돌 계산 ----------
-// 집 벽에 부딪히면 밀어내요. 지붕 위(refY가 지붕보다 높음)에 있으면 벽을 무시해요.
-function resolveHouses(p, r, refY, hgt) {
+// 벽에 부딪히면 밀어내요. 지붕 위(refY가 지붕보다 높음)에 있으면 벽을 무시해요.
+function resolveSolids(p, r, refY, hgt) {
   eachNear(p.x, p.z, h => {
     if (refY >= h.top - 0.8 || h === p.ghost) return;
+    if (h.kind === 'tower') {
+      if (!(p.y < h.h && p.y + hgt > 0)) return;
+      const dx = p.x - h.x, dz = p.z - h.z, d = Math.hypot(dx, dz), need = h.r + r;
+      if (d < need) { const k = need / (d || 0.001); p.x = h.x + (d ? dx * k : need); p.z = h.z + (d ? dz * k : 0); }
+      return;
+    }
+    const lp = toLocal(h, p.x, p.z);
+    let px = lp.x, pz = lp.z, hit = false;
     for (const w of h.walls) {
       if (!(p.y < w.y1 && p.y + hgt > w.y0)) continue;
-      const dx = p.x - w.x, dz = p.z - w.z;
+      const dx = px - w.x, dz = pz - w.z;
       const ox = w.hw + r - Math.abs(dx), oz = w.hd + r - Math.abs(dz);
       if (ox > 0 && oz > 0) {
-        if (ox < oz) p.x += (dx >= 0 ? 1 : -1) * ox;
-        else p.z += (dz >= 0 ? 1 : -1) * oz;
+        if (ox < oz) px += (dx >= 0 ? 1 : -1) * ox;
+        else pz += (dz >= 0 ? 1 : -1) * oz;
+        hit = true;
       }
     }
+    if (hit) { p.x = h.x + px * h.cs + pz * h.sn; p.z = h.z - px * h.sn + pz * h.cs; }
   });
+  for (const rg of ringsRT) {
+    if (refY >= rg.h - 0.8 || !(p.y < rg.h)) continue;
+    const dx = p.x - rg.cx, dz = p.z - rg.cz, rho = Math.hypot(dx, dz);
+    if (rho > rg.r1 + r || rho < rg.r0 - r) continue;
+    const ang = Math.atan2(dx, dz);
+    if (rg.gates.some(g => Math.abs(angDiff(ang, g.a)) * rho < g.gh)) continue;
+    const target = rho >= (rg.r0 + rg.r1) / 2 ? rg.r1 + r : rg.r0 - r;
+    const k = target / (rho || 0.001);
+    p.x = rg.cx + dx * k; p.z = rg.cz + dz * k;
+  }
+}
+// 이 자리의 지붕·성벽 위 높이 (그 위에 서 있을 수 있으면 높이, 아니면 0)
+function standHeight(x, z, prevY, ghost) {
+  let gh = 0;
+  eachNear(x, z, h => {
+    if (h.kind === 'tower') { if (Math.hypot(x - h.x, z - h.z) < h.r && prevY >= h.h - 0.8 && h.h > gh) gh = h.h; return; }
+    const lp = toLocal(h, x, z);
+    if (Math.abs(lp.x) < h.hw && Math.abs(lp.z) < h.hd && prevY >= h.top - 0.8 && h.top > gh) gh = h.top;
+  });
+  for (const rg of ringsRT) {
+    if (prevY < rg.h - 0.8) continue;
+    const dx = x - rg.cx, dz = z - rg.cz, rho = Math.hypot(dx, dz);
+    if (rho < rg.r0 || rho > rg.r1) continue;
+    const ang = Math.atan2(dx, dz);
+    if (rg.gates.some(g => Math.abs(angDiff(ang, g.a)) * rho < g.gh)) continue;
+    if (rg.h > gh) gh = rg.h;
+  }
+  return gh;
 }
 function turnTo(cur, target, rate) {
   let d = target - cur;
@@ -527,49 +875,55 @@ function turnTo(cur, target, rate) {
 function inShelter(x, z) { return Math.hypot(x - SHELTER.x, z - SHELTER.z) < SHELTER.r; }
 
 // ---------- 길 찾기 (거인은 길을 따라 움직여요) ----------
-const NN = N + 1;
-function nodeOf(x, z) {
-  return { k: clamp(Math.round((x - SX[0]) / PITCH), 0, N), l: clamp(Math.round((z - SZ[0]) / PITCH), 0, N) };
-}
-function bfsPath(ka, la, kb, lb) {
-  const start = ka * NN + la, goal = kb * NN + lb;
-  if (start === goal) return [{ k: ka, l: la }];
-  const prev = new Int16Array(NN * NN).fill(-1);
-  const q = [start]; prev[start] = start;
-  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  for (let qi = 0; qi < q.length; qi++) {
-    const cur = q[qi];
-    if (cur === goal) break;
-    const ck = Math.floor(cur / NN), cl = cur % NN;
-    for (const dd of dirs) {
-      const nk = ck + dd[0], nl = cl + dd[1];
-      if (nk < 0 || nl < 0 || nk > N || nl > N) continue;
-      const ni = nk * NN + nl;
-      if (prev[ni] !== -1) continue;
-      prev[ni] = cur; q.push(ni);
-    }
+function nearestEdge(x, z) {
+  let best = null, bd = 1e12;
+  for (const e of GRAPH.edges) {
+    const a = GRAPH.nodes[e.a];
+    const u = clamp((x - a.x) * e.ux + (z - a.z) * e.uz, 0, e.len);
+    const d = Math.hypot(x - (a.x + e.ux * u), z - (a.z + e.uz * u));
+    if (d < bd) { bd = d; best = { e, u, d }; }
   }
-  const path = [];
-  let cur = goal;
-  while (cur !== start) { path.push({ k: Math.floor(cur / NN), l: cur % NN }); cur = prev[cur]; }
-  path.push({ k: ka, l: la });
-  path.reverse();
-  return path;
+  return best;
+}
+function edgePoint(e, u) { const a = GRAPH.nodes[e.a]; return { x: a.x + e.ux * u, z: a.z + e.uz * u }; }
+function route(x, z, tx, tz) { // 지금 자리에서 목표까지 지나갈 교차로 번호 목록 (다익스트라)
+  const N2 = GRAPH.nodes, n = N2.length;
+  const s = nearestEdge(x, z), g = nearestEdge(tx, tz);
+  const dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1), done = new Uint8Array(n);
+  for (const id of [s.e.a, s.e.b]) dist[id] = Math.hypot(x - N2[id].x, z - N2[id].z);
+  for (let it = 0; it < n; it++) {
+    let u = -1, bd = Infinity;
+    for (let i = 0; i < n; i++) if (!done[i] && dist[i] < bd) { bd = dist[i]; u = i; }
+    if (u < 0) break;
+    done[u] = 1;
+    for (const ad of N2[u].adj) if (dist[u] + ad.len < dist[ad.to]) { dist[ad.to] = dist[u] + ad.len; prev[ad.to] = u; }
+  }
+  let goal = g.e.a, bt = Infinity;
+  for (const id of [g.e.a, g.e.b]) {
+    const tot = dist[id] + Math.hypot(tx - N2[id].x, tz - N2[id].z);
+    if (tot < bt) { bt = tot; goal = id; }
+  }
+  const out = [];
+  for (let c = goal; c !== -1; c = prev[c]) out.push(c);
+  out.reverse();
+  return out;
 }
 function setPath(t, tx, tz, finalDirect) {
-  const a = nodeOf(t.x, t.z), b = nodeOf(tx, tz);
-  const nodes = bfsPath(a.k, a.l, b.k, b.l);
-  const pts = nodes.map(n => ({ x: SX[n.k], z: SZ[n.l] }));
-  if (pts.length > 1) { // 이미 첫 교차로를 지나쳤으면 되돌아가지 않아요
-    const dx = t.x - pts[0].x, dz = t.z - pts[0].z, ex = pts[1].x - pts[0].x, ez = pts[1].z - pts[0].z;
-    if (dx * ex + dz * ez > 0) pts.shift();
+  const pts = route(t.x, t.z, tx, tz).map(i => ({ x: GRAPH.nodes[i].x, z: GRAPH.nodes[i].z }));
+  while (pts.length) { // 이미 지나친 교차로로는 되돌아가지 않아요
+    const nx = pts[1] || (finalDirect ? { x: tx, z: tz } : null);
+    if (!nx) break;
+    const ex = nx.x - pts[0].x, ez = nx.z - pts[0].z;
+    if ((t.x - pts[0].x) * ex + (t.z - pts[0].z) * ez > 0) pts.shift(); else break;
   }
   if (finalDirect && pts.length >= 2) {
     const p0 = pts[pts.length - 2], p1 = pts[pts.length - 1];
     const sx = p1.x - p0.x, sz = p1.z - p0.z, L2 = sx * sx + sz * sz;
-    const u = ((tx - p0.x) * sx + (tz - p0.z) * sz) / L2;
-    const perp = Math.abs((tx - p0.x) * sz - (tz - p0.z) * sx) / Math.sqrt(L2);
-    if (u > 0 && u < 1 && perp < 12) pts.pop();
+    if (L2 > 1e-6) {
+      const u = ((tx - p0.x) * sx + (tz - p0.z) * sz) / L2;
+      const perp = Math.abs((tx - p0.x) * sz - (tz - p0.z) * sx) / Math.sqrt(L2);
+      if (u > 0 && u < 1 && perp < 12) pts.pop();
+    }
   }
   if (finalDirect) pts.push({ x: tx, z: tz });
   t.path = pts;
@@ -820,53 +1174,64 @@ function mouthPos(t) { // 거인 입 앞 (잡은 사람을 들고 있는 곳)
   const f = (0.65 * t.tr.hs + 0.5) * t.tr.sx;
   return { x: t.x + Math.sin(t.rot) * f, y: (4.0 + 0.25 * t.tr.hs) * t.tr.sy, z: t.z + Math.cos(t.rot) * f };
 }
-
-// ---------- 게임 물체 ----------
+// ---------- 게임 물체 (맵을 고른 뒤에 만들어요) ----------
 const player = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, rot: 0, step: 0, onGround: true, grappling: false, anchor: null,
-                 grappleT: 0, slashT: 0, grabbed: null, mash: 0, noiseT: 0, carried: [], ghost: null, stallT: 0, stallRef: { x: 0, y: 0, z: 0 } };
-player.rig = humanRig({ skin: 0xf6d27a, shirt: 0x2e86ff, pants: 0x2b3a67, hair: 0x4b2e1a, scale: 0.6, face: 'calm' });
-scene.add(player.rig.group);
-{
+                 grappleT: 0, slashT: 0, grabbed: null, mash: 0, noiseT: 0, carried: [], ghost: null, stallT: 0, stallRef: { x: 0, y: 0, z: 0 }, rig: null };
+const cables = []; // 입체기동 줄 (양쪽 허리에서 나가요)
+const titans = [];
+const citizens = [];
+const dangerEls = [];
+const beamGeo = new THREE.CylinderGeometry(0.7, 0.7, 70, 10, 1, true);
+const beamYellow = new THREE.MeshBasicMaterial({ color: 0xffd84a, transparent: true, opacity: 0.32, depthWrite: false });
+const beamGreen = new THREE.MeshBasicMaterial({ color: 0x66ff88, transparent: true, opacity: 0.32, depthWrite: false });
+const shirtColors = [0xff7ab8, 0xffd23f, 0x7ad7f0, 0xc58cff, 0xff9a5c, 0x9be37a];
+
+function makeActors() {
+  player.rig = humanRig({ skin: 0xf6d27a, shirt: 0x2e86ff, pants: 0x2b3a67, hair: 0x4b2e1a, scale: 0.6, face: 'calm' });
+  scene.add(player.rig.group);
   const gearMat = new THREE.MeshLambertMaterial({ color: 0x6c7480 });
   for (const sx of [-1, 1]) {
     const g = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.9, 0.8), gearMat);
     g.position.set(sx * 1.15, 2.3, -0.1);
     player.rig.group.add(g);
   }
-}
-const cables = []; // 입체기동 줄 (양쪽 허리에서 나가요)
-for (let i = 0; i < 2; i++) {
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 1, 0], 3));
-  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xf2f2f2 }));
-  line.frustumCulled = false; line.visible = false;
-  scene.add(line);
-  cables.push(line);
+  for (let i = 0; i < 2; i++) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 1, 0], 3));
+    const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xf2f2f2 }));
+    line.frustumCulled = false; line.visible = false;
+    scene.add(line);
+    cables.push(line);
+  }
+
+  for (let i = 0; i < CONFIG.titanCount; i++) {
+    titans.push({ rig: null, tr: null, x: 0, z: 0, rot: 0, step: Math.random() * 6, state: 'inactive', respawnAt: i * 0.8,
+                  path: [], target: null, holding: null, scanT: 0, repathT: 0, chaseTime: 0, ignorePlayer: 0, searchCD: 0,
+                  searchT: 0, searchTarget: null, eatT: 0, stunT: 0, deadT: 0, reach: 0, heard: null, heardT: 0,
+                  sx: 3.6, sy: 3.6, speedMul: 1, sight: 95, hearMul: 0.7, grabReach: 8.5, grabCD: 0 });
+  }
+
+  for (let i = 0; i < CONFIG.citizenCount; i++) {
+    const rig = humanRig({ skin: pick([0xf6d27a, 0xe8b98a, 0xd9a577]), shirt: shirtColors[i % shirtColors.length],
+                           pants: 0x555555, hair: pick([0x6b4a2b, 0x2b2118, 0xb08a4a]), scale: 0.55, face: 'scared' });
+    rig.armsUp = true;
+    const beam = new THREE.Mesh(beamGeo, beamYellow);
+    beam.position.y = 35;
+    scene.add(rig.group, beam);
+    citizens.push({ rig, beam, x: 0, y: 0, z: 0, state: 'hidden', house: null, edge: null, u: 0, cower: 0, step: Math.random() * 6,
+                    holder: null, safeT: 0 });
+  }
+
+  const dangersEl = document.getElementById('dangers');
+  for (let i = 0; i < CONFIG.titanCount; i++) {
+    const el = document.createElement('div');
+    el.className = 'danger';
+    el.innerHTML = '<div class="t"></div><div class="bar"><i></i></div>';
+    dangersEl.appendChild(el);
+    dangerEls.push({ el, text: el.firstChild, bar: el.lastChild.firstChild });
+  }
 }
 
-const titans = [];
-for (let i = 0; i < CONFIG.titanCount; i++) {
-  titans.push({ rig: null, tr: null, x: 0, z: 0, rot: 0, step: Math.random() * 6, state: 'inactive', respawnAt: i * 0.8,
-                path: [], target: null, holding: null, scanT: 0, repathT: 0, chaseTime: 0, ignorePlayer: 0, searchCD: 0,
-                searchT: 0, searchTarget: null, eatT: 0, stunT: 0, deadT: 0, reach: 0, heard: null, heardT: 0,
-                sx: 3.6, sy: 3.6, speedMul: 1, sight: 95, hearMul: 0.7, grabReach: 8.5, grabCD: 0 });
-}
-
-const citizens = [];
-const beamGeo = new THREE.CylinderGeometry(0.7, 0.7, 70, 10, 1, true);
-const beamYellow = new THREE.MeshBasicMaterial({ color: 0xffd84a, transparent: true, opacity: 0.32, depthWrite: false });
-const beamGreen = new THREE.MeshBasicMaterial({ color: 0x66ff88, transparent: true, opacity: 0.32, depthWrite: false });
-const shirtColors = [0xff7ab8, 0xffd23f, 0x7ad7f0, 0xc58cff, 0xff9a5c, 0x9be37a];
-for (let i = 0; i < CONFIG.citizenCount; i++) {
-  const rig = humanRig({ skin: pick([0xf6d27a, 0xe8b98a, 0xd9a577]), shirt: shirtColors[i % shirtColors.length],
-                         pants: 0x555555, hair: pick([0x6b4a2b, 0x2b2118, 0xb08a4a]), scale: 0.55, face: 'scared' });
-  rig.armsUp = true;
-  const beam = new THREE.Mesh(beamGeo, beamYellow);
-  beam.position.y = 35;
-  scene.add(rig.group, beam);
-  citizens.push({ rig, beam, x: 0, y: 0, z: 0, state: 'hidden', house: null, axis: 'x', lane: 0, cower: 0, step: Math.random() * 6,
-                  holder: null, safeT: 0 });
-}
 
 // 입자 (먼지, 불꽃, 증기)
 const particles = [];
@@ -901,33 +1266,31 @@ function updateParticles(dt) {
     p.m.scale.set(s, s, s);
   }
 }
-
 // ---------- 게임 상태 ----------
-let state = 'ready'; // 'ready' | 'play' | 'win' | 'lose'
+let state = 'menu'; // 'menu' | 'ready' | 'play' | 'paused' | 'win' | 'lose'
 let elapsed = 0, delivered = 0, eaten = 0, kills = 0;
 let yaw = 0, camPitch = 0.5, camDist = 26;
 let camPitchEff = 0.5, camDistEff = 26;
-const EAT_LIMIT = CONFIG.citizenCount - CONFIG.saveGoal + 1; // 이만큼 먹히면 실패
+let EAT_LIMIT = 1; // 이만큼 먹히면 실패 (맵을 고르면 계산해요)
 const camPos = { x: 0, y: 0, z: 0 }, camF = { x: 0, y: 0, z: -1 }, camR = { x: 1, y: 0, z: 0 }, camU = { x: 0, y: 1, z: 0 };
 let camFocus = { x: 0, y: 0, z: 0 };
 
 function placeOnStreet(c, nearX, nearZ) { // 가까운 길 위에 세우기
-  const nk = nodeOf(nearX, nearZ);
-  const dxs = Math.abs(nearX - SX[nk.k]), dzs = Math.abs(nearZ - SZ[nk.l]);
-  if (dzs <= dxs) { c.axis = 'x'; c.lane = SZ[nk.l]; c.z = c.lane; c.x = nearX; }
-  else { c.axis = 'z'; c.lane = SX[nk.k]; c.x = c.lane; c.z = nearZ; }
+  const ne = nearestEdge(nearX, nearZ);
+  c.edge = ne.e; c.u = clamp(ne.u, 6, Math.max(6, ne.e.len - 6));
+  const pt = edgePoint(c.edge, c.u); c.x = pt.x; c.z = pt.z;
 }
 
 function resetGame() {
   elapsed = 0; delivered = 0; eaten = 0; kills = 0;
-  player.x = SHELTER.x; player.z = SHELTER.z + 10; player.y = 0;
+  player.x = LAY.start.x; player.z = LAY.start.z; player.y = 0;
   player.vx = player.vy = player.vz = 0; player.rot = 0; player.grappling = false; player.anchor = null;
   player.grabbed = null; player.mash = 0; player.carried = []; player.ghost = null;
   yaw = 0; camFocus = { x: player.x, y: 0, z: player.z };
   setCutaway(null);
 
   for (const h of houses) h.citizen = null;
-  const pool = houses.filter(h => !h.shelter);
+  const pool = houses.filter(h => h.kind === 'house');
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
   const hiddenCount = CONFIG.citizenCount - CONFIG.citizenOutside;
   citizens.forEach((c, i) => {
@@ -941,12 +1304,12 @@ function resetGame() {
       c.beam.position.set(c.x, 35, c.z);
     } else {
       c.state = 'outside';
-      for (let tries = 0; tries < 40; tries++) {
-        const k = 1 + Math.floor(Math.random() * (N - 1)), l = 1 + Math.floor(Math.random() * (N - 1));
-        const ax = Math.random() < 0.5 ? 'x' : 'z', off = rand(10, PITCH - 10) * (Math.random() < 0.5 ? 1 : -1);
-        const x = ax === 'x' ? SX[k] + off : SX[k], z = ax === 'x' ? SZ[l] : SZ[l] + off;
-        if (Math.hypot(x - SHELTER.x, z - SHELTER.z) < 60) continue;
-        c.axis = ax; c.lane = ax === 'x' ? SZ[l] : SX[k]; c.x = x; c.z = z; break;
+      for (let tries = 0; tries < 80; tries++) {
+        const e = GRAPH.edges[Math.floor(Math.random() * GRAPH.edges.length)];
+        if (e.noCitizen || e.len < 24) continue;
+        const u = rand(10, e.len - 10), pt = edgePoint(e, u);
+        if (Math.hypot(pt.x - SHELTER.x, pt.z - SHELTER.z) < 60) continue;
+        c.edge = e; c.u = u; c.x = pt.x; c.z = pt.z; break;
       }
       c.y = 0;
       c.beam.material = beamGreen; c.beam.visible = true;
@@ -983,6 +1346,7 @@ window.addEventListener('keydown', e => {
   const k = keyName(e);
   if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
   if (e.repeat) return;
+  if (k === 'escape' || k === 'p') { setPause(state === 'play'); return; }
   keys[k] = true;
   if (k === ' ') press('grapple');
   else if (k === 'f') press('attack');
@@ -1074,13 +1438,30 @@ const overlay = document.getElementById('overlay');
 const ovTitle = document.getElementById('ovTitle');
 const ovText = document.getElementById('ovText');
 const ovBtn = document.getElementById('ovBtn');
+const ovMenuBtn = document.getElementById('ovMenuBtn');
 function startGame() {
   resetGame();
   state = 'play';
   overlay.style.display = 'none';
   toast('집 안의 시민(노란 빛기둥)에게 가서 G로 업고 대피소로! Space로 날아가요!', 4);
 }
-ovBtn.addEventListener('click', startGame);
+ovBtn.addEventListener('click', () => { if (state === 'paused') setPause(false); else startGame(); });
+ovMenuBtn.addEventListener('click', () => { location.reload(); });   // 맵 고르는 첫 화면으로 돌아가요
+function setPause(on) {
+  if (on && state === 'play') {
+    state = 'paused';
+    ovTitle.textContent = '잠깐 멈춤';
+    ovText.textContent = '게임이 멈춰 있어요.';
+    ovBtn.textContent = '계속하기';
+    overlay.style.display = 'flex';
+    clearKeys();
+    joy.id = null; joyBase.style.display = joyKnob.style.display = 'none';
+  } else if (!on && state === 'paused') {
+    state = 'play';
+    overlay.style.display = 'none';
+  }
+}
+document.getElementById('btnPause').addEventListener('click', () => setPause(true));
 function endGame(result, why) {
   if (state !== 'play') return;
   state = result;
@@ -1121,8 +1502,13 @@ function roofClearance(p, a) {
   for (let s2 = 0; s2 <= reach; s2 += 4) {
     const x = p.x + ux * s2, z = p.z + uz * s2;
     eachNear(x, z, h => {
-      if (Math.abs(x - h.x) < h.hw + 3 && Math.abs(z - h.z) < h.hd + 3 && h.top > top) top = h.top;
+      const rr = h.kind === 'tower' ? h.r + 3 : h.rad + 2;
+      if (Math.hypot(x - h.x, z - h.z) < rr && h.top > top) top = h.top;
     });
+    for (const rg of ringsRT) {
+      const q = Math.hypot(x - rg.cx, z - rg.cz);
+      if (q > rg.r0 - 3 && q < rg.r1 + 3 && rg.h > top) top = rg.h;
+    }
   }
   return top;
 }
@@ -1152,16 +1538,43 @@ function startGrapple() {
     if (sc2 > bs) { bs = sc2; best = { x: n.x, y: n.y, z: n.z, titan: t }; }
   }
   if (!best) {
-    for (const h of houses) {
-      const ex = clamp(p.x, h.x - h.hw, h.x + h.hw), ez = clamp(p.z, h.z - h.hd, h.z + h.hd);
+    const tryAnchor = (ex, ez, topY, stick) => {
       const dx = ex - p.x, dz = ez - p.z, hd = Math.hypot(dx, dz);
-      if (hd > CONFIG.grappleRange) continue;
-      const ay = h.top + 2.5, d3 = Math.hypot(dx, ay - p.y, dz);
-      if (d3 < 12 || d3 > CONFIG.grappleRange) continue;
+      if (hd > CONFIG.grappleRange) return;
+      const ay = topY + 2.5, d3 = Math.hypot(dx, ay - p.y, dz);
+      if (d3 < 12 || d3 > CONFIG.grappleRange) return;
       const dot = hd > 0.5 ? (dx * ax + dz * az) / hd : 0;
-      if (dot < 0.55) continue;
+      if (dot < 0.55) return;
       const sc2 = dot * 2 - d3 / 120 + clamp((ay - p.y) / 60, -0.3, 0.3);
-      if (sc2 > bs) { bs = sc2; best = { x: ex, y: ay, z: ez, titan: null }; }
+      if (sc2 > bs) { bs = sc2; best = { x: ex, y: ay, z: ez, titan: null, stick: !!stick }; }
+    };
+    for (const h of houses) { // 집·건물 (돌아간 집도 자기 좌표로 바꿔서 가장 가까운 지붕 끝을 찾아요)
+      if (Math.hypot(h.x - p.x, h.z - p.z) > CONFIG.grappleRange + h.rad) continue;
+      const lp = toLocal(h, p.x, p.z);
+      const lx = clamp(lp.x, -h.hw, h.hw), lz = clamp(lp.z, -h.hd, h.hd);
+      tryAnchor(h.x + lx * h.cs + lz * h.sn, h.z - lx * h.sn + lz * h.cs, h.top);
+    }
+    for (const [, arr] of solidsHash) {
+      for (const h of arr) {
+        if (h.kind !== 'tower') continue;
+        const dx = p.x - h.x, dz = p.z - h.z, d = Math.hypot(dx, dz) || 1;
+        if (d > CONFIG.grappleRange + h.r) continue;
+        tryAnchor(h.x + dx / d * h.r * 0.8, h.z + dz / d * h.r * 0.8, h.h, true);
+      }
+    }
+    for (const rg of ringsRT) { // 성벽: 가려는 방향으로 날아가면 성벽 위에 닿는 자리
+      const ox = p.x - rg.cx, oz = p.z - rg.cz, rm = (rg.r0 + rg.r1) / 2;
+      const b = ox * ax + oz * az, c0 = ox * ox + oz * oz - rm * rm, disc = b * b - c0;
+      if (disc < 0) continue;
+      const sq = Math.sqrt(disc);
+      for (const s of [-b - sq, -b + sq]) {
+        if (s < 6) continue;
+        const ex = p.x + ax * s, ez = p.z + az * s;
+        const ang = Math.atan2(ex - rg.cx, ez - rg.cz);
+        if (rg.gates.some(g => Math.abs(angDiff(ang, g.a)) * rm < g.gh + 3)) continue;
+        tryAnchor(ex, ez, rg.h, true);
+        break;
+      }
     }
   }
   if (!best) { toast('줄이 닿을 곳이 없어요. 가고 싶은 방향(WASD)을 정해 보세요!', 1.6); return; }
@@ -1275,7 +1688,8 @@ function updatePlayer(dt) {
       const dx = a.x - p.x, dy = ty - p.y, dz = a.z - p.z, d = Math.hypot(dx, dy, dz) || 1;
       const dReal = Math.hypot(a.x - p.x, a.y - p.y, a.z - p.z);
       if (dReal < (a.titan ? 5 : 3.2) || p.grappleT > 4) {
-        p.vx *= 0.4; p.vy *= 0.4; p.vz *= 0.4;
+        const kk = a.stick ? 0.08 : 0.4;   // 성벽·탑 위에는 미끄러지지 않고 살짝 내려앉아요
+        p.vx *= kk; p.vy *= kk; p.vz *= kk;
         stopGrapple();
       } else {
         // 실제로 거의 움직이지 못하면(벽·천장에 막힘) 줄이 자동으로 풀려요
@@ -1316,26 +1730,24 @@ function updatePlayer(dt) {
   for (let s = 0; s < steps; s++) {
     const prevY = p.y;
     p.x += p.vx * sdt; p.z += p.vz * sdt; p.y += p.vy * sdt;
-    p.x = clamp(p.x, -HALF + 1, HALF - 1);
-    p.z = clamp(p.z, -HALF + 1, HALF - 1);
-    resolveHouses(p, 1.0, prevY, HGT);
-    gh = 0;
-    eachNear(p.x, p.z, h => {
-      if (Math.abs(p.x - h.x) < h.hw && Math.abs(p.z - h.z) < h.hd) {
-        if (prevY >= h.top - 0.8) { if (h.top > gh) gh = h.top; }                 // 지붕 위
-        else if (!h.shelter && h !== p.ghost && Math.abs(p.x - h.x) < h.hw - WALL_T && Math.abs(p.z - h.z) < h.hd - WALL_T &&
-                 prevY + HGT <= h.h - 0.3 + 0.5 && p.y + HGT > h.h - 0.3) {       // 집 안 천장
-          p.y = h.h - 0.3 - HGT; if (p.vy > 0) p.vy = 0;
-        }
+    clampBounds(p, 1);
+    resolveSolids(p, 1.0, prevY, HGT);
+    gh = standHeight(p.x, p.z, prevY);                                           // 지붕·성벽 위
+    eachNear(p.x, p.z, h => {                                                     // 집 안 천장
+      if (h.kind !== 'house' || h === p.ghost || prevY >= h.top - 0.8) return;
+      const lp = toLocal(h, p.x, p.z);
+      if (Math.abs(lp.x) < h.hw - WALL_T && Math.abs(lp.z) < h.hd - WALL_T &&
+          prevY + HGT <= h.h - 0.3 + 0.5 && p.y + HGT > h.h - 0.3) {
+        p.y = h.h - 0.3 - HGT; if (p.vy > 0) p.vy = 0;
       }
     });
     if (p.y <= gh && (p.vy < 0 || prevY >= gh - 0.8)) { p.y = gh; if (p.vy < 0) p.vy = 0; }
   }
   p.onGround = p.y <= gh + 0.05;
   if (p.ghost && !p.grappling) {   // 집을 빠져나왔거나 방 안에 서 있으면 다시 벽이 단단해져요
-    const g0 = p.ghost;
-    if (Math.abs(p.x - g0.x) > g0.hw + 1.2 || Math.abs(p.z - g0.z) > g0.hd + 1.2 || p.y >= g0.top - 0.8 ||
-        (Math.abs(p.x - g0.x) < g0.hw - WALL_T - 1 && Math.abs(p.z - g0.z) < g0.hd - WALL_T - 1 && p.y + HGT < g0.h - 0.3)) p.ghost = null;
+    const g0 = p.ghost, lg = toLocal(g0, p.x, p.z);
+    if (Math.abs(lg.x) > g0.hw + 1.2 || Math.abs(lg.z) > g0.hd + 1.2 || p.y >= g0.top - 0.8 ||
+        (Math.abs(lg.x) < g0.hw - WALL_T - 1 && Math.abs(lg.z) < g0.hd - WALL_T - 1 && p.y + HGT < g0.h - 0.3)) p.ghost = null;
   }
 
   const sp = Math.hypot(p.vx, p.vz);
@@ -1400,13 +1812,12 @@ function spawnTitan(t) {
   t.hearMul = t.tr.hearMul;
   t.grabReach = clamp(2.35 * t.tr.sy, 6, 14);
 
-  let k = 0, l = 0;
+  let sn = GRAPH.nodes[GRAPH.spawn[0]];
   for (let tries = 0; tries < 40; tries++) {
-    if (Math.random() < 0.5) { k = Math.random() < 0.5 ? 0 : N; l = Math.floor(Math.random() * NN); }
-    else { l = Math.random() < 0.5 ? 0 : N; k = Math.floor(Math.random() * NN); }
-    if (Math.hypot(SX[k] - player.x, SZ[l] - player.z) > 150) break;
+    sn = GRAPH.nodes[pick(GRAPH.spawn)];
+    if (Math.hypot(sn.x - player.x, sn.z - player.z) > 150) break;
   }
-  t.x = SX[k]; t.z = SZ[l]; t.rot = rand(0, 6.28);
+  t.x = sn.x; t.z = sn.z; t.rot = rand(0, 6.28);
   t.state = 'wander'; t.path = []; t.target = null; t.holding = null; t.heard = null; t.heardT = 0;
   t.scanT = rand(0, 0.3); t.chaseTime = 0; t.ignorePlayer = 0; t.searchCD = 2; t.grabCD = 0; t.reach = 0;
   t.rig.group.rotation.x = 0; t.rig.group.position.set(t.x, 0, t.z);
@@ -1442,13 +1853,18 @@ function scanTitan(t) { // 눈에 보이는 목표 찾기 (눈이 없는 거인�
   if (t.state === 'chase') { t.state = 'wander'; t.target = null; t.path = []; }
   return false;
 }
-function wanderDest(t) {
-  const a = nodeOf(t.x, t.z);
-  let k = a.k, l = a.l;
-  for (let i = 0; i < 10 && k === a.k && l === a.l; i++) {
-    k = clamp(a.k + Math.floor(rand(-3, 4)), 0, N); l = clamp(a.l + Math.floor(rand(-3, 4)), 0, N);
+function wanderDest(t) { // 가까운 교차로 중 하나로 걸어가요 (맵에 따라 나 쪽으로 올 때도 있어요)
+  const nodes = GRAPH.nodes, cand = [];
+  nodes.forEach((n, i) => { const d = Math.hypot(n.x - t.x, n.z - t.z); if (d > 30 && d < 330) cand.push(i); });
+  if (!cand.length) { const n0 = pick(nodes); setPath(t, n0.x, n0.z, false); return; }
+  let idx = pick(cand);
+  if (Math.random() < LAY.titanHunt) {
+    for (let i = 0; i < 5; i++) {
+      const j = pick(cand);
+      if (Math.hypot(nodes[j].x - player.x, nodes[j].z - player.z) < Math.hypot(nodes[idx].x - player.x, nodes[idx].z - player.z)) idx = j;
+    }
   }
-  setPath(t, SX[k], SZ[l], false);
+  setPath(t, nodes[idx].x, nodes[idx].z, false);
 }
 function grab(t, tg) {
   if (tg.type === 'citizen') {
@@ -1596,9 +2012,8 @@ function updateTitan(t, dt) {
     const dx = t.x - u.x, dz = t.z - u.z, d = Math.hypot(dx, dz);
     if (d < 8 && d > 0.01) { t.x += dx / d * (8 - d) * 0.5; t.z += dz / d * (8 - d) * 0.5; }
   }
-  t.x = clamp(t.x, -HALF + 8, HALF - 8);
-  t.z = clamp(t.z, -HALF + 8, HALF - 8);
-  resolveHouses(t, 3.5, 0, 60);
+  clampBounds(t, 8);
+  resolveSolids(t, 3.5, 0, 60);
 
   t.reach += ((t.state === 'chase' ? 1 : 0) - t.reach) * Math.min(1, dt * 4);
   if (t.state === 'chase' && !t.rig.alertShown) setTitanFace(t, 'alert');
@@ -1642,11 +2057,12 @@ function updateCitizens(dt) {
           const d = Math.hypot(t.x - c.x, t.z - c.z);
           if (d < nd) { nd = d; near = t; }
         }
-        if (near && nd < 45) { // 거인에게서 도망
-          const dir = c.axis === 'x' ? (Math.sign(c.x - near.x) || 1) : (Math.sign(c.z - near.z) || 1);
-          if (c.axis === 'x') c.x = clamp(c.x + dir * 9.5 * dt, -HALF + 7, HALF - 7);
-          else c.z = clamp(c.z + dir * 9.5 * dt, -HALF + 7, HALF - 7);
-          rotY = c.axis === 'x' ? (dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (dir > 0 ? 0 : Math.PI);
+        if (near && nd < 45 && c.edge) { // 거인에게서 도망 (자기가 서 있는 길을 따라)
+          const e = c.edge;
+          const dir = ((c.x - near.x) * e.ux + (c.z - near.z) * e.uz) >= 0 ? 1 : -1;
+          c.u = clamp(c.u + dir * 9.5 * dt, 6, Math.max(6, e.len - 6));
+          const pt = edgePoint(e, c.u); c.x = pt.x; c.z = pt.z;
+          rotY = Math.atan2(e.ux * dir, e.uz * dir);
           moving = true;
         }
       }
@@ -1679,21 +2095,10 @@ const stText = document.getElementById('stText');
 
 const mmBase = document.createElement('canvas'); // 지도 바탕은 한 번만 그려 두어요
 mmBase.width = mmBase.height = 150;
-(function drawMiniBase() {
-  const g = mmBase.getContext('2d'), k = 150 / (HALF * 2);
-  g.fillStyle = '#6f6c66'; g.fillRect(0, 0, 150, 150);
-  g.fillStyle = '#cdbf9f';
-  for (const h of houses) {
-    if (h.shelter) continue;
-    g.fillRect((h.x - h.hw + HALF) * k, (h.z - h.hd + HALF) * k, h.hw * 2 * k, h.hd * 2 * k);
-  }
-  g.fillStyle = '#4a86c8';
-  g.fillRect((SHELTER.x - BW / 2 + HALF) * k, (SHELTER.z - BW / 2 + HALF) * k, BW * k, BW * k);
-})();
 
 function drawMini() {
-  const k = 150 / (HALF * 2);
-  const px = x => (x + HALF) * k, pz = z => (z + HALF) * k;
+  const E = LAY.extent, k = 150 / (E * 2);
+  const px = x => (x + E) * k, pz = z => (z + E) * k;
   mm.drawImage(mmBase, 0, 0);
   for (const c of citizens) {
     if (c.state === 'hidden') { mm.fillStyle = '#ffd84a'; mm.fillRect(px(c.x) - 2.5, pz(c.z) - 2.5, 5, 5); }
@@ -1737,14 +2142,6 @@ function toScreen(x, y, z) {
   return { x: W / 2 + dx * s2, y: H / 2 + dy * s2, on: false };
 }
 
-const dangerEls = [];
-for (let i = 0; i < CONFIG.titanCount; i++) {
-  const el = document.createElement('div');
-  el.className = 'danger';
-  el.innerHTML = '<div class="t"></div><div class="bar"><i></i></div>';
-  dangersEl.appendChild(el);
-  dangerEls.push({ el, text: el.firstChild, bar: el.lastChild.firstChild });
-}
 function updateDangers() {
   let used = 0;
   for (const t of titans) {
@@ -1789,8 +2186,9 @@ function updateHud() {
 function playerHouse() { // 지금 내가 들어와 있는 집 찾기
   let found = null;
   eachNear(player.x, player.z, h => {
-    if (!h.shelter && Math.abs(player.x - h.x) < h.hw - WALL_T && Math.abs(player.z - h.z) < h.hd - WALL_T &&
-        player.y < h.h - 0.3) found = h;
+    if (h.kind !== 'house') return;
+    const lp = toLocal(h, player.x, player.z);
+    if (Math.abs(lp.x) < h.hw - WALL_T && Math.abs(lp.z) < h.hd - WALL_T && player.y < h.h - 0.3) found = h;
   });
   return found;
 }
@@ -1800,13 +2198,14 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
+  if (!LAY) return;   // 아직 맵을 고르지 않았어요
 
   if (state === 'play') {
     elapsed += dt;
     updatePlayer(dt);
     if (state === 'play') updateTitans(dt);
     if (state === 'play') updateCitizens(dt);
-  } else {
+  } else if (state !== 'paused') {
     yaw += dt * 0.12;
     updateCitizens(dt);
   }
@@ -1849,11 +2248,101 @@ function frame(now) {
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) toastEl.style.opacity = 0; }
 }
 
+// ---------- 맵 고르기 화면 ----------
+const menuEl = document.getElementById('menu');
+const mapGrid = document.getElementById('mapGrid');
+const menuMsg = document.getElementById('menuMsg');
+const menuStart = document.getElementById('menuStart');
+const layouts = {};
+let chosenId = null;
+
+function loadScript(src) { // 맵 파일 하나를 불러와요 (파일 안의 registerMap 이 실행돼요)
+  return new Promise(resolve => {
+    const s = document.createElement('script');
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    s.src = src;
+    document.head.appendChild(s);
+  });
+}
+
+function enterMap(id) {
+  const L = layouts[id];
+  if (!L || LAY) return false;
+  Object.assign(CONFIG, L.config);
+  realizeWorld(L);
+  makeActors();
+  EAT_LIMIT = CONFIG.citizenCount - CONFIG.saveGoal + 1;
+  drawMapBase(mmBase.getContext('2d'), 150, L);
+  menuEl.style.display = 'none';
+  try { localStorage.setItem('wd_lastmap', id); } catch (e) { /* 저장이 안 돼도 괜찮아요 */ }
+  state = 'ready';
+  startGame();
+  return true;
+}
+
+function chooseCard(id, cards) {
+  chosenId = id;
+  for (const c of cards) c.el.className = 'mapcard' + (c.id === id ? ' sel' : '');
+  menuStart.disabled = false;
+  menuStart.textContent = '「' + layouts[id].name + '」로 시작';
+}
+
+async function boot() {
+  menuMsg.textContent = '맵을 불러오는 중이에요...';
+  const failed = [];
+  const okManifest = await loadScript('maps/maps.js');
+  const files = (okManifest && Array.isArray(window.MAP_FILES)) ? window.MAP_FILES : [];
+  if (!okManifest) failed.push('maps/maps.js');
+  for (const f of files) { if (!(await loadScript(f))) failed.push(f); }
+
+  const seen = {};
+  const defs = MAPS.filter(d => !seen[d.id] && (seen[d.id] = true)).sort((a, b) => (a.order || 99) - (b.order || 99));
+  const cards = [];
+  for (const def of defs) {
+    const el = document.createElement('div');
+    el.className = 'mapcard';
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 150;
+    const nm = document.createElement('span'); nm.className = 'mn'; nm.textContent = (def.icon ? def.icon + ' ' : '') + def.name;
+    const ds = document.createElement('span'); ds.className = 'md'; ds.textContent = def.desc || '';
+    const st = document.createElement('span'); st.className = 'ms';
+    el.appendChild(cv); el.appendChild(nm); el.appendChild(ds); el.appendChild(st);
+    mapGrid.appendChild(el);
+    await new Promise(r => setTimeout(r, 0));   // 화면이 멈추지 않게 하나씩 만들어요
+    try {
+      const L = makeLayout(def);
+      layouts[def.id] = L;
+      drawMapBase(cv.getContext('2d'), 150, L);
+      const hs = L.houses.filter(h => h.kind === 'house').length;
+      st.textContent = '집 ' + hs + '채 · 시민 ' + (L.config.citizenCount || CONFIG.citizenCount) + '명';
+      cards.push({ id: def.id, el });
+      el.addEventListener('click', () => chooseCard(def.id, cards));
+    } catch (err) {
+      el.className = 'mapcard bad';
+      st.textContent = '맵에 문제가 있어요: ' + (err && err.message);
+      console.error('맵 만들기 실패', def.id, err);
+    }
+  }
+  const msgs = [];
+  if (failed.length) msgs.push('불러오지 못한 파일: ' + failed.join(', '));
+  if (!defs.length) msgs.push('맵이 하나도 없어요. maps 폴더(maps.js 포함)를 같이 올렸는지 확인해 주세요.');
+  menuMsg.textContent = msgs.join(' / ');
+  menuStart.addEventListener('click', () => { if (chosenId) enterMap(chosenId); });
+  if (cards.length) {
+    let last = null;
+    try { last = localStorage.getItem('wd_lastmap'); } catch (e) { last = null; }
+    chooseCard(cards.some(c => c.id === last) ? last : cards[0].id, cards);
+  } else { menuStart.textContent = '맵이 없어요'; }
+}
+
 window.__game = { player, titans, citizens, houses, CONFIG, keys, makeNoise, rollTraits, startGame, napePos, mouthPos, tryRescue, roofClearance,
+                  MAPS, layouts, enterMap, route, GRAPH, solidsHash, standHeight, resolveSolids, toLocal, makeLayout, SHELTER,
                   get state() { return state; }, get elapsed() { return elapsed; }, get delivered() { return delivered; },
                   get eaten() { return eaten; }, get kills() { return kills; }, set yaw(v) { yaw = v; }, get yaw() { return yaw; },
-                  get curHouse() { return curHouse; }, SX, SZ, SHELTER, HALF, camPos, camF, camR, camU };
-resetGame();
+                  get curHouse() { return curHouse; }, get LAY() { return LAY; }, camPos, camF, camR, camU,
+                  ready: null };
+window.__game.ready = boot();
 requestAnimationFrame(frame);
 </script>
 </body>
