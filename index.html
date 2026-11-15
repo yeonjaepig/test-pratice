@@ -13,14 +13,14 @@
 <body>
 <h3>거인 디펜스 시험판</h3>
 <canvas id="c" width="800" height="500"></canvas>
-<p>클릭(터치)한 곳으로 날아가요. 시민(초록)을 구하고, 거인(빨강)에게 잡히지 마요!</p>
+<p>W A S D 키로 움직여요. 시민(초록)을 구하고, 거인에게 잡히지 마요! 거인의 눈이 빨갛게 빛나면 쫓아오는 중이에요.</p>
 
 <script>
 // ===== 설정값: 여기 숫자만 바꿔도 게임이 달라져요 =====
 const CONFIG = {
-  playerSpeed: 6,      // 내가 날아가는 속도
+  playerSpeed: 4.5,    // WASD로 움직이는 속도
   titanCount: 3,       // 거인 수
-  titanSpeed: 2.2,     // 거인 속도 (내 속도보다 느려야 해요)
+  titanSpeed: 1.6,     // 거인 속도 (내 속도보다 느려야 해요)
   titanSight: 220,     // 거인이 나를 발견하는 거리
   citizenCount: 5,     // 시민 수
   roundSeconds: 30     // 버텨야 하는 시간(초)
@@ -41,7 +41,7 @@ function init() {
   player = { x: W / 2, y: H / 2, tx: W / 2, ty: H / 2, r: 10 };
   titans = [];
   for (let i = 0; i < CONFIG.titanCount; i++) {
-    titans.push({ x: rand(0, W), y: rand(0, 120), r: 22, wx: rand(0, W), wy: rand(0, H), mode: 'wander' });
+    titans.push({ x: rand(0, W), y: rand(0, 120), r: 30, wx: rand(0, W), wy: rand(0, H), mode: 'wander', angle: 0, step: rand(0, 6) });
   }
   citizens = [];
   for (let i = 0; i < CONFIG.citizenCount; i++) {
@@ -52,14 +52,20 @@ function init() {
   state = 'play';
 }
 
-// 클릭한 곳을 목표로 정하기
-function setTarget(e) {
-  if (state !== 'play') { init(); return; }
-  const rect = canvas.getBoundingClientRect();
-  player.tx = (e.clientX - rect.left) * (W / rect.width);
-  player.ty = (e.clientY - rect.top) * (H / rect.height);
-}
-canvas.addEventListener('pointerdown', setTarget);
+// 키보드 입력 (WASD)
+const keys = {};
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (['w', 'a', 's', 'd'].includes(k)) {
+    keys[k] = true;
+    e.preventDefault();
+  }
+  // 게임이 끝났을 때 아무 키나 누르면 다시 시작
+  if (state !== 'play') init();
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+// 화면을 클릭해도 다시 시작
+canvas.addEventListener('pointerdown', () => { if (state !== 'play') init(); });
 
 // 거인 한 마리의 행동: 배회 -> 추격
 function updateTitan(t) {
@@ -73,17 +79,69 @@ function updateTitan(t) {
   const d = Math.hypot(t.wx - t.x, t.wy - t.y) || 1;
   t.x += (t.wx - t.x) / d * CONFIG.titanSpeed;
   t.y += (t.wy - t.y) / d * CONFIG.titanSpeed;
+  t.angle = Math.atan2(t.wy - t.y, t.wx - t.x); // 바라보는 방향
+  t.step += 0.08; // 걸을 때 몸이 흔들리는 정도
+}
+
+// 거인 그리기: 위에서 내려다본 거대한 사람 모습
+function drawTitan(t) {
+  const chasing = t.mode === 'chase';
+  const sway = Math.sin(t.step) * 4;
+  ctx.save();
+  ctx.translate(t.x, t.y);
+  ctx.rotate(t.angle);
+
+  // 그림자
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(0, 0, t.r * 1.5, t.r * 1.2, 0, 0, 7); ctx.fill();
+
+  // 팔 (걸을 때 앞뒤로 흔들려요)
+  ctx.fillStyle = chasing ? '#d98a73' : '#c9a08a';
+  ctx.beginPath(); ctx.ellipse(sway, -t.r * 1.05, t.r * 0.75, t.r * 0.38, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-sway, t.r * 1.05, t.r * 0.75, t.r * 0.38, 0, 0, 7); ctx.fill();
+
+  // 몸통(어깨)
+  ctx.fillStyle = chasing ? '#c4604a' : '#b58a76';
+  ctx.beginPath(); ctx.ellipse(-t.r * 0.1, 0, t.r * 0.85, t.r * 1.2, 0, 0, 7); ctx.fill();
+
+  // 머리
+  ctx.fillStyle = chasing ? '#e8a88f' : '#d9b8a3';
+  ctx.beginPath(); ctx.arc(t.r * 0.35, 0, t.r * 0.62, 0, 7); ctx.fill();
+
+  // 머리카락
+  ctx.fillStyle = '#3b2a22';
+  ctx.beginPath(); ctx.arc(t.r * 0.1, 0, t.r * 0.55, Math.PI * 0.55, Math.PI * 1.45); ctx.fill();
+
+  // 눈 (쫓아올 때는 빨갛게 빛나요)
+  ctx.fillStyle = chasing ? '#ff2222' : '#222';
+  ctx.beginPath(); ctx.arc(t.r * 0.75, -t.r * 0.22, t.r * 0.1, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(t.r * 0.75, t.r * 0.22, t.r * 0.1, 0, 7); ctx.fill();
+
+  // 입
+  ctx.strokeStyle = '#5a1f1f';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(t.r * 0.85, -t.r * 0.2); ctx.lineTo(t.r * 0.85, t.r * 0.2); ctx.stroke();
+
+  ctx.restore();
 }
 
 function update() {
   if (state !== 'play') return;
 
-  // 플레이어 이동
-  const d = Math.hypot(player.tx - player.x, player.ty - player.y);
-  if (d > CONFIG.playerSpeed) {
-    player.x += (player.tx - player.x) / d * CONFIG.playerSpeed;
-    player.y += (player.ty - player.y) / d * CONFIG.playerSpeed;
+  // 플레이어 이동 (WASD)
+  let dx = 0, dy = 0;
+  if (keys['w']) dy -= 1;
+  if (keys['s']) dy += 1;
+  if (keys['a']) dx -= 1;
+  if (keys['d']) dx += 1;
+  if (dx !== 0 || dy !== 0) {
+    const len = Math.hypot(dx, dy); // 대각선도 같은 속도로
+    player.x += dx / len * CONFIG.playerSpeed;
+    player.y += dy / len * CONFIG.playerSpeed;
   }
+  // 화면 밖으로 못 나가게
+  player.x = Math.max(player.r, Math.min(W - player.r, player.x));
+  player.y = Math.max(player.r, Math.min(H - player.r, player.y));
 
   // 거인 이동 + 잡힘 확인
   for (const t of titans) {
@@ -110,10 +168,7 @@ function draw() {
   for (const c of citizens) { ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, 7); ctx.fill(); }
 
   // 거인
-  for (const t of titans) {
-    ctx.fillStyle = t.mode === 'chase' ? '#ff3b3b' : '#b84a4a';
-    ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, 7); ctx.fill();
-  }
+  for (const t of titans) drawTitan(t);
 
   // 플레이어
   ctx.fillStyle = '#4fc3ff';
