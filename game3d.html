@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>거인 디펜스 3D 시험판</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #8ecfff; font-family: sans-serif; color: #fff;
+               touch-action: none; user-select: none; -webkit-user-select: none; }
+  #game { display: block; width: 100%; height: 100%; touch-action: none; }
+  #hud { position: fixed; left: 10px; top: 10px; font-size: 18px; font-weight: bold; line-height: 1.5;
+         text-shadow: 0 2px 4px rgba(0,0,0,.7); pointer-events: none; }
+  #mini { position: fixed; right: 10px; top: 10px; width: 140px; height: 140px; border: 3px solid rgba(255,255,255,.6);
+          border-radius: 8px; pointer-events: none; }
+  #overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+             background: rgba(0,0,0,.55); text-align: center; padding: 16px; box-sizing: border-box; }
+  #overlay h1 { margin: 0 0 8px; font-size: 30px; }
+  #overlay p { margin: 4px 0; max-width: 440px; line-height: 1.5; }
+  #overlay button { margin-top: 16px; padding: 12px 36px; font-size: 20px; border: 0; border-radius: 10px;
+                    background: #4caf50; color: #fff; cursor: pointer; }
+  #joyBase, #joyKnob { position: fixed; border-radius: 50%; pointer-events: none; display: none; }
+  #joyBase { width: 120px; height: 120px; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.4); }
+  #joyKnob { width: 50px; height: 50px; background: rgba(255,255,255,.6); }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud"></div>
+<canvas id="mini" width="140" height="140"></canvas>
+<div id="joyBase"></div><div id="joyKnob"></div>
+<div id="overlay">
+  <h1 id="ovTitle">거인 디펜스 3D 시험판</h1>
+  <p id="ovText">거인에게 잡히지 말고 시간 끝까지 버티면서 초록 빛기둥 아래의 시민을 구해요!</p>
+  <p>컴퓨터: <b>WASD</b>로 이동, 마우스 드래그나 <b>Q/E</b>로 시점 돌리기, 마우스 휠로 확대·축소<br>
+     모바일: 화면 <b>왼쪽</b>을 눌러 끌면 이동, <b>오른쪽</b>을 끌면 시점 돌리기</p>
+  <button id="ovBtn">시작</button>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ===== 설정값: 숫자만 바꿔도 게임이 달라져요 =====
+const CONFIG = {
+  mapHalf: 320,        // 땅 크기 (320이면 640 x 640 칸)
+  playerSpeed: 16,     // 내 속도
+  titanCount: 4,       // 거인 수
+  titanSpeed: 8,       // 거인 속도 (내 속도보다 느려야 해요)
+  titanSight: 110,     // 거인이 나를 발견하는 거리
+  titanScale: 3.6,     // 거인 크기 (내 키의 6배쯤)
+  catchRadius: 4.5,    // 이 거리 안으로 가까워지면 잡혀요
+  citizenCount: 8,     // 시민 수
+  roundSeconds: 90     // 버텨야 하는 시간(초)
+};
+// =================================================
+
+const HALF = CONFIG.mapHalf;
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// ---------- 기본 장면 ----------
+const canvas = document.getElementById('game');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8ecfff);
+scene.fog = new THREE.Fog(0x8ecfff, 150, 480);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 900);
+
+function resize() {
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// 빛: 하늘빛 + 해(그림자를 만들어요)
+scene.add(new THREE.HemisphereLight(0xffffff, 0x6a8a5a, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+const sc = sun.shadow.camera;
+sc.left = -70; sc.right = 70; sc.top = 70; sc.bottom = -70; sc.near = 1; sc.far = 300;
+sc.updateProjectionMatrix();
+sun.shadow.bias = -0.0005;
+scene.add(sun, sun.target);
+
+// ---------- 땅 (로블록스 베이스플레이트처럼 스터드 무늬) ----------
+function studTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#5fae4e'; g.fillRect(0, 0, 64, 64);
+  g.fillStyle = '#6cbc5a'; g.fillRect(2, 2, 60, 60);
+  g.fillStyle = '#7ccb66'; g.beginPath(); g.arc(32, 32, 9, 0, Math.PI * 2); g.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set((HALF * 2) / 8, (HALF * 2) / 8); // 8칸마다 무늬 한 번
+  t.anisotropy = 8;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(HALF * 2, HALF * 2),
+  new THREE.MeshLambertMaterial({ map: studTexture() })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const outer = new THREE.Mesh(
+  new THREE.PlaneGeometry(3000, 3000),
+  new THREE.MeshLambertMaterial({ color: 0x4a8a3a })
+);
+outer.rotation.x = -Math.PI / 2;
+outer.position.y = -0.1;
+scene.add(outer);
+
+// ---------- 성벽 ----------
+const wallMat = new THREE.MeshLambertMaterial({ color: 0x9aa0aa });
+function addWall(x, z, w, d) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, 40, d), wallMat);
+  m.position.set(x, 20, z);
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m);
+}
+const L = HALF * 2 + 16;
+addWall(0, -HALF - 4, L, 8);
+addWall(0, HALF + 4, L, 8);
+addWall(-HALF - 4, 0, 8, L);
+addWall(HALF + 4, 0, 8, L);
+
+// ---------- 집과 나무 ----------
+const obstacles = []; // 부딪히는 건물 목록 {x, z, hw, hd}
+const palette = [0xe85d5d, 0xf2c14e, 0x5da9e8, 0xb07be8, 0xf29b4e, 0xeeeeee];
+const roofMat = new THREE.MeshLambertMaterial({ color: 0x8b3a2f });
+const doorMat = new THREE.MeshLambertMaterial({ color: 0x6b4423 });
+const windowMat = new THREE.MeshLambertMaterial({ color: 0xbfe6ff });
+
+function overlaps(x, z, hw, hd, margin) {
+  for (const o of obstacles) {
+    if (Math.abs(x - o.x) < hw + o.hw + margin && Math.abs(z - o.z) < hd + o.hd + margin) return true;
+  }
+  return false;
+}
+
+function addHouse(x, z, w, d, h, color) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color }));
+  body.position.y = h / 2;
+  g.add(body);
+
+  const roofGeo = new THREE.ConeGeometry(1, 1, 4);
+  roofGeo.rotateY(Math.PI / 4);
+  const roofH = Math.min(w, d) * 0.5 + 2;
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.scale.set(w * 0.78, roofH, d * 0.78);
+  roof.position.y = h + roofH / 2;
+  g.add(roof);
+
+  const door = new THREE.Mesh(new THREE.BoxGeometry(3, 5, 0.4), doorMat);
+  door.position.set(0, 2.5, d / 2);
+  g.add(door);
+  for (const sx of [-1, 1]) {
+    const win = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 0.4), windowMat);
+    win.position.set(sx * w * 0.3, h * 0.6, d / 2);
+    g.add(win);
+  }
+  g.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  scene.add(g);
+  obstacles.push({ x, z, hw: w / 2, hd: d / 2 });
+}
+
+for (let i = 0, tries = 0; i < 45 && tries < 2000; tries++) {
+  const w = rand(10, 22), d = rand(10, 22), h = rand(8, 16);
+  const x = rand(-HALF + 25, HALF - 25), z = rand(-HALF + 25, HALF - 25);
+  if (Math.hypot(x, z) < 50) continue;               // 시작 자리 근처는 비워 둬요
+  if (overlaps(x, z, w / 2, d / 2, 10)) continue;
+  addHouse(x, z, w, d, h, palette[Math.floor(Math.random() * palette.length)]);
+  i++;
+}
+
+const trunkMat = new THREE.MeshLambertMaterial({ color: 0x7a5230 });
+const leafMat = new THREE.MeshLambertMaterial({ color: 0x3f9a3a });
+for (let i = 0, tries = 0; i < 120 && tries < 2000; tries++) {
+  const x = rand(-HALF + 10, HALF - 10), z = rand(-HALF + 10, HALF - 10);
+  if (Math.hypot(x, z) < 25) continue;
+  if (overlaps(x, z, 2, 2, 6)) continue;
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.6, 7, 1.6), trunkMat);
+  trunk.position.y = 3.5;
+  const leaves1 = new THREE.Mesh(new THREE.BoxGeometry(8, 6, 8), leafMat);
+  leaves1.position.y = 9.5;
+  const leaves2 = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 5), leafMat);
+  leaves2.position.y = 14;
+  g.add(trunk, leaves1, leaves2);
+  g.traverse(m => { if (m.isMesh) m.castShadow = true; });
+  scene.add(g);
+  i++;
+}
+
+// 구름
+const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+for (let i = 0; i < 24; i++) {
+  const g = new THREE.Group();
+  for (let j = 0; j < 3; j++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(rand(30, 60), rand(8, 14), rand(20, 36)), cloudMat);
+    b.position.set(rand(-25, 25), rand(-3, 3), rand(-12, 12));
+    g.add(b);
+  }
+  g.position.set(rand(-HALF, HALF), rand(120, 170), rand(-HALF, HALF));
+  scene.add(g);
+}
+
+// ---------- 로블록스 느낌 블록 캐릭터 만들기 ----------
+function cssColor(n) { return '#' + n.toString(16).padStart(6, '0'); }
+
+function faceTexture(skin, angry) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = cssColor(skin);
+  g.fillRect(0, 0, 64, 64);
+  g.lineCap = 'round';
+  if (!angry) {
+    g.fillStyle = '#222';
+    g.fillRect(17, 22, 7, 12);
+    g.fillRect(40, 22, 7, 12);
+    g.strokeStyle = '#222'; g.lineWidth = 4;
+    g.beginPath(); g.arc(32, 36, 14, 0.2, Math.PI - 0.2); g.stroke();
+  } else {
+    g.fillStyle = '#ff2a2a';
+    g.fillRect(15, 26, 10, 8);
+    g.fillRect(39, 26, 10, 8);
+    g.strokeStyle = '#3a1010'; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(12, 18); g.lineTo(27, 25); g.stroke();
+    g.beginPath(); g.moveTo(52, 18); g.lineTo(37, 25); g.stroke();
+    g.fillStyle = '#3a1010'; g.fillRect(18, 44, 28, 12);
+    g.fillStyle = '#fff';
+    for (let i = 0; i < 4; i++) g.fillRect(20 + i * 7, 44, 4, 5);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// o: { skin, shirt, arm, pants, hair, scale, angry }
+function makeBlocky(o) {
+  const group = new THREE.Group();
+  const mat = c => new THREE.MeshLambertMaterial({ color: c });
+  const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+
+  const skinMat = mat(o.skin);
+  const calm = new THREE.MeshLambertMaterial({ map: faceTexture(o.skin, false) });
+  const angry = o.angry ? new THREE.MeshLambertMaterial({ map: faceTexture(o.skin, true) }) : calm;
+
+  const torso = box(2, 2, 1, mat(o.shirt));
+  torso.position.y = 3;
+
+  // 머리 상자의 앞면(+z)에 얼굴 그림을 붙여요
+  const headMats = [skinMat, skinMat, skinMat, skinMat, calm, skinMat];
+  const head = box(1.3, 1.3, 1.3, headMats);
+  head.position.y = 4.65;
+  const hairTop = box(1.4, 0.45, 1.4, mat(o.hair));
+  hairTop.position.y = 5.25;
+  const hairBack = box(1.4, 1.0, 0.35, mat(o.hair));
+  hairBack.position.set(0, 4.85, -0.55);
+
+  // 팔다리는 관절 위치에 중심을 두고 흔들어요
+  function limb(x, y, w, h, m) {
+    const pivot = new THREE.Group();
+    pivot.position.set(x, y, 0);
+    const part = box(w, h, w, m);
+    part.position.y = -h / 2;
+    pivot.add(part);
+    return pivot;
+  }
+  const armL = limb(-1.5, 4, 1, 2, mat(o.arm));
+  const armR = limb(1.5, 4, 1, 2, mat(o.arm));
+  const legL = limb(-0.5, 2, 1, 2, mat(o.pants));
+  const legR = limb(0.5, 2, 1, 2, mat(o.pants));
+
+  group.add(torso, head, hairTop, hairBack, armL, armR, legL, legR);
+  group.scale.setScalar(o.scale);
+  group.traverse(m => { if (m.isMesh) m.castShadow = true; });
+
+  return {
+    group,
+    setAngry(v) { headMats[4] = v ? angry : calm; },
+    // step: 걸음 박자, amount: 흔드는 크기(0~1), reach: 팔을 앞으로 뻗는 정도(0~1)
+    animate(step, amount, reach = 0) {
+      const s = Math.sin(step) * amount * 0.9;
+      armL.rotation.x = -1.3 * reach + s * (1 - reach);
+      armR.rotation.x = -1.3 * reach - s * (1 - reach);
+      legL.rotation.x = -s;
+      legR.rotation.x = s;
+    }
+  };
+}
+
+// ---------- 게임 물체 ----------
+const player = { x: 0, z: 0, rot: 0, step: 0 };
+player.rig = makeBlocky({ skin: 0xf6d27a, shirt: 0x2e86ff, arm: 0xf6d27a, pants: 0x2b3a67, hair: 0x4b2e1a, scale: 0.6 });
+scene.add(player.rig.group);
+
+const titans = [];
+for (let i = 0; i < CONFIG.titanCount; i++) {
+  const rig = makeBlocky({ skin: 0xe0a183, shirt: 0x8a4b3a, arm: 0xe0a183, pants: 0x4a3a30, hair: 0x2a1d16,
+                           scale: CONFIG.titanScale, angry: true });
+  scene.add(rig.group);
+  titans.push({ rig, x: 0, z: 0, rot: 0, step: Math.random() * 6, mode: 'wander', wx: 0, wz: 0, reach: 0 });
+}
+
+const citizens = [];
+const beamGeo = new THREE.CylinderGeometry(0.8, 0.8, 60, 12, 1, true);
+const beamMat = new THREE.MeshBasicMaterial({ color: 0x66ff88, transparent: true, opacity: 0.3, depthWrite: false });
+const shirtColors = [0xff7ab8, 0xffd23f, 0x7ad7f0, 0xc58cff, 0xff9a5c];
+for (let i = 0; i < CONFIG.citizenCount; i++) {
+  const rig = makeBlocky({ skin: 0xf6d27a, shirt: shirtColors[i % shirtColors.length], arm: 0xf6d27a,
+                           pants: 0x555555, hair: 0x6b4a2b, scale: 0.55 });
+  const beam = new THREE.Mesh(beamGeo, beamMat);
+  beam.position.y = 30;
+  scene.add(rig.group, beam);
+  citizens.push({ rig, beam, x: 0, z: 0, alive: true });
+}
+
+// 장애물에 안 겹치는 빈 자리 찾기
+function freeSpot(minFromCenter, margin) {
+  for (let i = 0; i < 300; i++) {
+    const x = rand(-HALF + 15, HALF - 15), z = rand(-HALF + 15, HALF - 15);
+    if (Math.hypot(x, z) < minFromCenter) continue;
+    if (overlaps(x, z, 1, 1, margin)) continue;
+    return { x, z };
+  }
+  return { x: HALF * 0.5, z: HALF * 0.5 };
+}
+
+// ---------- 게임 상태 ----------
+let state = 'ready'; // 'ready' | 'play' | 'win' | 'lose'
+let saved = 0, timeLeft = CONFIG.roundSeconds;
+let yaw = 0, pitch = 0.55, camDist = 22;
+
+function resetGame() {
+  player.x = 0; player.z = 0; player.rot = 0;
+  for (const c of citizens) {
+    const p = freeSpot(70, 6);
+    c.x = p.x; c.z = p.z; c.alive = true;
+    c.rig.group.visible = true; c.beam.visible = true;
+    c.rig.group.position.set(c.x, 0, c.z);
+    c.beam.position.set(c.x, 30, c.z);
+    c.rig.group.rotation.y = rand(0, 6.28);
+  }
+  for (const t of titans) {
+    const p = freeSpot(160, 2);
+    t.x = p.x; t.z = p.z; t.mode = 'wander'; t.reach = 0;
+    t.wx = t.x; t.wz = t.z;
+    t.rig.setAngry(false);
+  }
+  saved = 0;
+  timeLeft = CONFIG.roundSeconds;
+}
+
+// ---------- 입력 ----------
+const keys = {};
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+window.addEventListener('wheel', e => { camDist = clamp(camDist + e.deltaY * 0.02, 12, 40); });
+
+const JOY_MAX = 60;
+const joy = { id: null, sx: 0, sy: 0, cx: 0, cy: 0 };
+const joyBase = document.getElementById('joyBase');
+const joyKnob = document.getElementById('joyKnob');
+let lookId = null, lastX = 0, lastY = 0;
+
+function moveKnob() {
+  const ox = joy.cx - joy.sx, oy = joy.cy - joy.sy;
+  const l = Math.hypot(ox, oy);
+  const k = l > JOY_MAX ? JOY_MAX / l : 1;
+  joyKnob.style.left = (joy.sx + ox * k - 25) + 'px';
+  joyKnob.style.top = (joy.sy + oy * k - 25) + 'px';
+}
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  if (e.pointerType === 'mouse') { lookId = e.pointerId; lastX = e.clientX; lastY = e.clientY; return; }
+  if (e.clientX < window.innerWidth / 2 && joy.id === null) {
+    // 화면 왼쪽: 이동 조이스틱
+    joy.id = e.pointerId;
+    joy.sx = joy.cx = e.clientX; joy.sy = joy.cy = e.clientY;
+    joyBase.style.left = (joy.sx - 60) + 'px'; joyBase.style.top = (joy.sy - 60) + 'px';
+    joyBase.style.display = joyKnob.style.display = 'block';
+    moveKnob();
+  } else if (lookId === null) {
+    // 화면 오른쪽: 시점 돌리기
+    lookId = e.pointerId; lastX = e.clientX; lastY = e.clientY;
+  }
+});
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerId === joy.id) {
+    joy.cx = e.clientX; joy.cy = e.clientY;
+    moveKnob();
+  } else if (e.pointerId === lookId) {
+    yaw -= (e.clientX - lastX) * 0.006;
+    pitch = clamp(pitch + (e.clientY - lastY) * 0.004, 0.2, 1.2);
+    lastX = e.clientX; lastY = e.clientY;
+  }
+});
+function release(e) {
+  if (e.pointerId === joy.id) { joy.id = null; joyBase.style.display = joyKnob.style.display = 'none'; }
+  if (e.pointerId === lookId) lookId = null;
+}
+canvas.addEventListener('pointerup', release);
+canvas.addEventListener('pointercancel', release);
+
+// ---------- 시작·끝 화면 ----------
+const overlay = document.getElementById('overlay');
+const ovTitle = document.getElementById('ovTitle');
+const ovText = document.getElementById('ovText');
+const ovBtn = document.getElementById('ovBtn');
+
+ovBtn.addEventListener('click', () => {
+  resetGame();
+  state = 'play';
+  overlay.style.display = 'none';
+});
+
+function endGame(result) {
+  state = result;
+  ovTitle.textContent = result === 'win' ? '버텼다! 성공!' : '거인에게 잡혔어요...';
+  ovText.textContent = '구한 시민: ' + saved + ' / ' + CONFIG.citizenCount;
+  ovBtn.textContent = '다시 시작';
+  overlay.style.display = 'flex';
+  joy.id = null; joyBase.style.display = joyKnob.style.display = 'none';
+}
+
+// ---------- 움직임 계산 ----------
+function turnTo(cur, target, rate) {
+  let d = target - cur;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return cur + d * Math.min(1, rate);
+}
+
+// 건물에 부딪히면 밀어내기
+function collide(p, r) {
+  for (const o of obstacles) {
+    const cx = clamp(p.x, o.x - o.hw, o.x + o.hw);
+    const cz = clamp(p.z, o.z - o.hd, o.z + o.hd);
+    const dx = p.x - cx, dz = p.z - cz;
+    const d = Math.hypot(dx, dz);
+    if (d < r) {
+      if (d > 0.0001) { p.x += dx / d * (r - d); p.z += dz / d * (r - d); }
+      else { p.x += r; }
+    }
+  }
+}
+
+function update(dt) {
+  // 시점 돌리기 (Q, E)
+  if (keys['q']) yaw += 1.8 * dt;
+  if (keys['e']) yaw -= 1.8 * dt;
+
+  // 이동 입력: ix = 오른쪽(+), iz = 앞(+)
+  let ix = 0, iz = 0;
+  if (keys['w'] || keys['arrowup']) iz += 1;
+  if (keys['s'] || keys['arrowdown']) iz -= 1;
+  if (keys['d'] || keys['arrowright']) ix += 1;
+  if (keys['a'] || keys['arrowleft']) ix -= 1;
+  if (joy.id !== null) {
+    const jx = joy.cx - joy.sx, jy = joy.cy - joy.sy;
+    const l = Math.hypot(jx, jy);
+    if (l > 8) {
+      const k = Math.min(l, JOY_MAX) / JOY_MAX;
+      ix += jx / l * k;
+      iz += -jy / l * k;
+    }
+  }
+  const il = Math.hypot(ix, iz);
+  if (il > 1) { ix /= il; iz /= il; }
+
+  // 카메라가 보는 방향 기준으로 바꾸기
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+  const rx = Math.cos(yaw), rz = -Math.sin(yaw);
+  const mx = fx * iz + rx * ix, mz = fz * iz + rz * ix;
+  const moving = Math.hypot(mx, mz) > 0.05;
+
+  player.x += mx * CONFIG.playerSpeed * dt;
+  player.z += mz * CONFIG.playerSpeed * dt;
+  player.x = clamp(player.x, -HALF + 1, HALF - 1);
+  player.z = clamp(player.z, -HALF + 1, HALF - 1);
+  collide(player, 1.0);
+  if (moving) {
+    player.rot = turnTo(player.rot, Math.atan2(mx, mz), dt * 12);
+    player.step += dt * 11;
+  }
+  player.rig.group.position.set(player.x, 0, player.z);
+  player.rig.group.rotation.y = player.rot;
+  player.rig.animate(player.step, moving ? 1 : 0);
+
+  // 거인: 배회 -> 추격
+  for (const t of titans) {
+    const dx = player.x - t.x, dz = player.z - t.z;
+    const d = Math.hypot(dx, dz);
+    const before = t.mode;
+    if (d < CONFIG.titanSight) t.mode = 'chase';
+    else if (d > CONFIG.titanSight * 1.5) t.mode = 'wander';
+    if (t.mode !== before) t.rig.setAngry(t.mode === 'chase');
+
+    let tx, tz, speed;
+    if (t.mode === 'chase') {
+      tx = player.x; tz = player.z; speed = CONFIG.titanSpeed;
+    } else {
+      if (Math.hypot(t.wx - t.x, t.wz - t.z) < 8) {
+        t.wx = rand(-HALF + 20, HALF - 20);
+        t.wz = rand(-HALF + 20, HALF - 20);
+      }
+      tx = t.wx; tz = t.wz; speed = CONFIG.titanSpeed * 0.6;
+    }
+    const vx = tx - t.x, vz = tz - t.z;
+    const vl = Math.hypot(vx, vz) || 1;
+    t.x = clamp(t.x + vx / vl * speed * dt, -HALF + 6, HALF - 6);
+    t.z = clamp(t.z + vz / vl * speed * dt, -HALF + 6, HALF - 6);
+    t.rot = turnTo(t.rot, Math.atan2(vx, vz), dt * 3);
+    t.step += dt * 2.4 * (speed / CONFIG.titanSpeed);
+    t.reach += ((t.mode === 'chase' ? 1 : 0) - t.reach) * Math.min(1, dt * 4);
+    t.rig.group.position.set(t.x, 0, t.z);
+    t.rig.group.rotation.y = t.rot;
+    t.rig.animate(t.step, 0.8, t.reach);
+
+    if (d < CONFIG.catchRadius) { endGame('lose'); return; }
+  }
+
+  // 시민 구하기
+  for (const c of citizens) {
+    if (c.alive && Math.hypot(c.x - player.x, c.z - player.z) < 3.5) {
+      c.alive = false;
+      c.rig.group.visible = false;
+      c.beam.visible = false;
+      saved++;
+    }
+  }
+
+  timeLeft -= dt;
+  if (timeLeft <= 0) { timeLeft = 0; endGame('win'); }
+}
+
+// ---------- 화면 그리기 ----------
+const hud = document.getElementById('hud');
+const mm = document.getElementById('mini').getContext('2d');
+
+function drawMini() {
+  const S = 140, k = S / (HALF * 2);
+  const px = x => (x + HALF) * k, pz = z => (z + HALF) * k;
+  mm.fillStyle = '#3b7a35'; mm.fillRect(0, 0, S, S);
+  mm.fillStyle = '#8a8f98';
+  for (const o of obstacles) mm.fillRect(px(o.x - o.hw), pz(o.z - o.hd), o.hw * 2 * k, o.hd * 2 * k);
+  mm.fillStyle = '#66ff88';
+  for (const c of citizens) if (c.alive) { mm.beginPath(); mm.arc(px(c.x), pz(c.z), 3, 0, 7); mm.fill(); }
+  for (const t of titans) {
+    mm.fillStyle = t.mode === 'chase' ? '#ff2a2a' : '#c06a5a';
+    mm.beginPath(); mm.arc(px(t.x), pz(t.z), 4.5, 0, 7); mm.fill();
+  }
+  mm.fillStyle = '#4fc3ff'; mm.strokeStyle = '#fff'; mm.lineWidth = 1.5;
+  mm.beginPath(); mm.arc(px(player.x), pz(player.z), 4, 0, 7); mm.fill(); mm.stroke();
+}
+
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  if (state === 'play') update(dt);
+  else yaw += dt * 0.15; // 시작·끝 화면에서는 천천히 돌려 보여줘요
+
+  // 카메라: 내 뒤쪽 위에서 따라가요
+  const cd = camDist;
+  camera.position.set(
+    player.x + Math.sin(yaw) * Math.cos(pitch) * cd,
+    2 + Math.sin(pitch) * cd,
+    player.z + Math.cos(yaw) * Math.cos(pitch) * cd
+  );
+  camera.lookAt(player.x, 2, player.z);
+
+  // 해 그림자가 나를 따라오게
+  sun.position.set(player.x + 60, 90, player.z + 40);
+  sun.target.position.set(player.x, 0, player.z);
+  sun.target.updateMatrixWorld();
+
+  renderer.render(scene, camera);
+  drawMini();
+  hud.textContent = '남은 시간: ' + Math.ceil(timeLeft) + '초\n구한 시민: ' + saved + ' / ' + CONFIG.citizenCount;
+  hud.style.whiteSpace = 'pre';
+}
+
+resetGame();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
