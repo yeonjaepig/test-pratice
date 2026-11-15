@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>거인 디펜스 시험판</title>
+<style>
+  body { margin: 0; background: #1b1f2a; color: #fff; font-family: sans-serif; text-align: center; }
+  canvas { background: #2d3a2e; max-width: 100%; display: block; margin: 8px auto; touch-action: none; }
+  p { margin: 6px 12px; }
+</style>
+</head>
+<body>
+<h3>거인 디펜스 시험판</h3>
+<canvas id="c" width="800" height="500"></canvas>
+<p>클릭(터치)한 곳으로 날아가요. 시민(초록)을 구하고, 거인(빨강)에게 잡히지 마요!</p>
+
+<script>
+// ===== 설정값: 여기 숫자만 바꿔도 게임이 달라져요 =====
+const CONFIG = {
+  playerSpeed: 6,      // 내가 날아가는 속도
+  titanCount: 3,       // 거인 수
+  titanSpeed: 2.2,     // 거인 속도 (내 속도보다 느려야 해요)
+  titanSight: 220,     // 거인이 나를 발견하는 거리
+  citizenCount: 5,     // 시민 수
+  roundSeconds: 30     // 버텨야 하는 시간(초)
+};
+// =====================================================
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+let player, titans, citizens, saved, startTime, state; // state: 'play' | 'win' | 'lose'
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+// 게임 시작(다시 시작)
+function init() {
+  player = { x: W / 2, y: H / 2, tx: W / 2, ty: H / 2, r: 10 };
+  titans = [];
+  for (let i = 0; i < CONFIG.titanCount; i++) {
+    titans.push({ x: rand(0, W), y: rand(0, 120), r: 22, wx: rand(0, W), wy: rand(0, H), mode: 'wander' });
+  }
+  citizens = [];
+  for (let i = 0; i < CONFIG.citizenCount; i++) {
+    citizens.push({ x: rand(40, W - 40), y: rand(150, H - 40), r: 7 });
+  }
+  saved = 0;
+  startTime = performance.now();
+  state = 'play';
+}
+
+// 클릭한 곳을 목표로 정하기
+function setTarget(e) {
+  if (state !== 'play') { init(); return; }
+  const rect = canvas.getBoundingClientRect();
+  player.tx = (e.clientX - rect.left) * (W / rect.width);
+  player.ty = (e.clientY - rect.top) * (H / rect.height);
+}
+canvas.addEventListener('pointerdown', setTarget);
+
+// 거인 한 마리의 행동: 배회 -> 추격
+function updateTitan(t) {
+  if (dist(t, player) < CONFIG.titanSight) {
+    t.mode = 'chase';
+    t.wx = player.x; t.wy = player.y;
+  } else {
+    t.mode = 'wander';
+    if (Math.hypot(t.x - t.wx, t.y - t.wy) < 10) { t.wx = rand(0, W); t.wy = rand(0, H); }
+  }
+  const d = Math.hypot(t.wx - t.x, t.wy - t.y) || 1;
+  t.x += (t.wx - t.x) / d * CONFIG.titanSpeed;
+  t.y += (t.wy - t.y) / d * CONFIG.titanSpeed;
+}
+
+function update() {
+  if (state !== 'play') return;
+
+  // 플레이어 이동
+  const d = Math.hypot(player.tx - player.x, player.ty - player.y);
+  if (d > CONFIG.playerSpeed) {
+    player.x += (player.tx - player.x) / d * CONFIG.playerSpeed;
+    player.y += (player.ty - player.y) / d * CONFIG.playerSpeed;
+  }
+
+  // 거인 이동 + 잡힘 확인
+  for (const t of titans) {
+    updateTitan(t);
+    if (dist(t, player) < t.r + player.r) state = 'lose';
+  }
+
+  // 시민 구하기
+  citizens = citizens.filter(c => {
+    if (dist(c, player) < c.r + player.r + 4) { saved++; return false; }
+    return true;
+  });
+
+  // 시간 확인
+  const left = CONFIG.roundSeconds - (performance.now() - startTime) / 1000;
+  if (left <= 0) state = 'win';
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // 시민
+  ctx.fillStyle = '#5be37d';
+  for (const c of citizens) { ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, 7); ctx.fill(); }
+
+  // 거인
+  for (const t of titans) {
+    ctx.fillStyle = t.mode === 'chase' ? '#ff3b3b' : '#b84a4a';
+    ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, 7); ctx.fill();
+  }
+
+  // 플레이어
+  ctx.fillStyle = '#4fc3ff';
+  ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, 7); ctx.fill();
+
+  // 글자 정보
+  const left = Math.max(0, CONFIG.roundSeconds - (performance.now() - startTime) / 1000);
+  ctx.fillStyle = '#fff';
+  ctx.font = '18px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('남은 시간: ' + (state === 'play' ? left.toFixed(1) : '0.0') + '초', 12, 26);
+  ctx.fillText('구한 시민: ' + saved + ' / ' + CONFIG.citizenCount, 12, 50);
+
+  if (state !== 'play') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = '36px sans-serif';
+    ctx.fillText(state === 'win' ? '버텼다! 성공!' : '거인에게 잡혔어요...', W / 2, H / 2 - 10);
+    ctx.font = '18px sans-serif';
+    ctx.fillText('화면을 클릭하면 다시 시작해요', W / 2, H / 2 + 28);
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+init();
+loop();
+</script>
+</body>
+</html>
