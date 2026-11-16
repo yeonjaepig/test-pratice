@@ -43,6 +43,12 @@
   #btnGrapple { right: 14px; bottom: 26px; width: 96px; height: 96px; font-size: 15px; }
   #btnAttack  { right: 122px; bottom: 22px; width: 78px; height: 78px; }
   #btnRescue  { right: 26px; bottom: 136px; width: 78px; height: 78px; }
+  #btnGate    { right: 26px; bottom: 226px; width: 70px; height: 70px; }
+  .optrow { margin: 8px 0; font-size: 15px; }
+  .optrow span { display: inline-block; min-width: 64px; font-weight: bold; }
+  button.opt { margin: 0 3px; padding: 7px 16px; font-size: 15px; border: 2px solid #3a4a6a; border-radius: 8px; background: #1f2a40; color: #fff; cursor: pointer; }
+  button.opt.sel { border-color: #ffd84a; background: #3a4f7a; }
+
   #menu { touch-action: pan-y; position: fixed; inset: 0; z-index: 6; background: rgba(12,18,32,.94); overflow-y: auto; padding: 18px 12px 28px;
           box-sizing: border-box; text-align: center; }
   #menu h1 { margin: 4px 0 4px; font-size: 28px; }
@@ -78,6 +84,7 @@
 <div id="struggle"><div id="stText">잡혔다! 연타해서 탈출!</div><div class="bar"><i id="stBar"></i></div></div>
 <div id="joyBase"></div><div id="joyKnob"></div>
 <div class="abtn" id="btnAttack">⚔<br>목덜미<br>베기</div>
+<div class="abtn" id="btnGate">🚪<br>성문<br>열닫</div>
 <div class="abtn" id="btnRescue">🤝<br>시민<br>업기</div>
 <div class="abtn" id="btnGrapple">🪝<br>입체기동<br>(꾹 누르기)</div>
 <button id="btnPause">⏸ 멈춤 / 맵 고르기</button>
@@ -92,12 +99,16 @@
   <p>플레이할 맵을 골라 주세요. (맵 파일을 <b>maps</b> 폴더에 넣으면 여기에 자동으로 나타나요)</p>
   <div id="menuMsg"></div>
   <div class="mapgrid" id="mapGrid"></div>
+  <div class="optrow"><span>난이도</span><button class="opt" id="d_easy">쉬움</button><button class="opt" id="d_normal">보통</button><button class="opt" id="d_hard">어려움</button></div>
+  <div class="optrow"><span>시민 수</span><button class="opt" id="c_10">10명</button><button class="opt" id="c_20">20명</button><button class="opt" id="c_30">30명</button></div>
   <button id="menuStart" disabled>맵을 골라 주세요</button>
   <p style="margin-top:16px">집 안에 숨은 시민(<b style="color:#ffd84a">노란 빛기둥</b>)에게 다가가 <b>G</b>로 업고(최대 2명)
      <b style="color:#6ab7ff">파란 대피소</b>까지 데려가세요. 거인에게 잡혀 먹히려는 시민은
      <b>입체기동으로 거인 뒤로 날아가 목덜미(주황색 점)를 F로 베어야</b> 구할 수 있어요!</p>
-  <p>컴퓨터: <b>WASD</b> 이동 / <b>Space(꾹 누르기)</b> 입체기동 / <b>F</b> 목덜미 베기 / <b>G</b> 시민 업기 / <b>Esc</b> 멈춤<br>
+  <p>컴퓨터: <b>WASD</b> 이동 / <b>Space(꾹 누르기)</b> 입체기동 / <b>F</b> 목덜미 베기 / <b>G</b> 시민 업기 / <b>X</b> 성문 열고닫기 / <b>Esc</b> 멈춤<br>
      시점은 마우스 드래그나 Q/E, 휠로 확대·축소 (마우스로는 입체기동을 쓸 수 없어요)</p>
+  <p>입체기동은 <b>가스</b>를, 목덜미 베기는 <b>칼 내구도</b>를 써요. <b>대피소</b>에 가면 다시 채워져요.<br>
+     성문(성벽 맵)은 닫아서 거인을 막을 수 있지만, 거인이 두드려서 <b>부술</b> 수 있어요. 대형 거인은 목덜미를 <b>두 번</b> 베어야 해요.</p>
   <p>모바일: 왼쪽 화면을 끌어 이동, 오른쪽 화면을 끌어 시점 돌리기, 오른쪽 아래 버튼으로 입체기동·베기<br>
      거인에게 잡히면 <b>아무 버튼이나 연타</b>하면 탈출할 수 있어요!</p>
 </div>
@@ -126,7 +137,16 @@ const CONFIG = {
 
   citizenCount: 20,      // 전체 시민 수
   citizenOutside: 4,     // 밖에 나와 있는 시민 수 (나머지는 집 안에 숨어 있어요)
-  saveGoal: 13           // 이만큼 구출하면 승리
+  saveGoal: 13,          // 이만큼 구출하면 승리
+  gasMax: 100,           // 입체기동 가스 양
+  gasUse: 12,            // 줄을 쓰는 동안 1초에 줄어드는 가스
+  gasRegen: 3,           // 땅에 서 있을 때 1초에 차는 가스 (대피소에서는 훨씬 빨리 차요)
+  gasShelter: 60,
+  bladeMax: 100,         // 칼 내구도
+  bladeCost: 25,         // 거인을 한 번 벨 때 줄어드는 내구도
+  bladeShelter: 45,      // 대피소에서 칼을 가는(교체하는) 속도
+  titanSpeedMul: 1,      // 난이도에 따라 거인 속도 배수
+  specialChance: 0.45    // 특별한 거인(달리는·대형·소리치는)이 나올 확률
 };
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -195,6 +215,9 @@ const bedColors = [0xc0504d, 0x4f81bd, 0x9bbb59, 0xf2a65a];
 const rugColors = [0xb04a4a, 0x4a6fb0, 0x6a9a5a, 0xc89a3a];
 const HEIGHT_TIERS = [9.5, 11.5, 13.5, 15.5, 17.5]; // 집 높이 단계 (조금씩 달라요)
 const BW = 56; // 대피소 광장 크기
+const GATE_H = 30; // 닫힌 성문 높이
+let GATES = [];
+function setGateState(g, st) { g.state = st; if (g.mesh) g.mesh.visible = (st === 'closed'); }
 
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
 
@@ -436,7 +459,8 @@ function makeLayout(def) {
       const tr = Math.max(7, t * 0.7);
       for (const g of (o.gates || [])) {
         const hw = (g.w || 24) / 2;
-        const gate = { a: g.a, hw, gh: hw + tr };
+        const gate = { a: g.a, hw, gh: hw + tr, state: g.closed ? 'closed' : 'open', hp: 12, maxHp: 12, toastT: 0,
+                       px: cx + Math.sin(g.a) * o.r, pz: cz + Math.cos(g.a) * o.r };
         rg.gates.push(gate);
         for (const sgn of [-1, 1]) {
           const aa = g.a + sgn * (hw + tr) / o.r;
@@ -729,6 +753,16 @@ function realizeWorld(L) {
     }
   }
 
+  // 성문(닫을 수 있는 문)
+  GATES = [];
+  for (const r of L.rings) for (const g of r.gates) {
+    const dm = new THREE.Mesh(new THREE.BoxGeometry(2 * g.hw + 2, GATE_H, Math.min(r.t * 0.7, 6)), new THREE.MeshLambertMaterial({ color: 0x5a3b22 }));
+    dm.position.set(g.px, GATE_H / 2, g.pz); dm.rotation.y = g.a; dm.castShadow = dm.receiveShadow = true;
+    scene.add(dm);
+    g.mesh = dm; g.ring = r; g.initState = g.state; setGateState(g, g.state);
+    GATES.push(g);
+  }
+
   // 집, 건물, 탑
   const unitBox = new THREE.BoxGeometry(1, 1, 1);
   const roofGeo = roofGeometry();
@@ -842,7 +876,8 @@ function resolveSolids(p, r, refY, hgt) {
     const dx = p.x - rg.cx, dz = p.z - rg.cz, rho = Math.hypot(dx, dz);
     if (rho > rg.r1 + r || rho < rg.r0 - r) continue;
     const ang = Math.atan2(dx, dz);
-    if (rg.gates.some(g => Math.abs(angDiff(ang, g.a)) * rho < g.gh)) continue;
+    const gate = rg.gates.find(g => Math.abs(angDiff(ang, g.a)) * rho < g.gh);
+    if (gate && !(gate.state === 'closed' && refY < GATE_H - 0.8 && p.y < GATE_H)) continue;   // 닫힌 성문은 벽처럼 막아요
     const target = rho >= (rg.r0 + rg.r1) / 2 ? rg.r1 + r : rg.r0 - r;
     const k = target / (rho || 0.001);
     p.x = rg.cx + dx * k; p.z = rg.cz + dz * k;
@@ -913,8 +948,10 @@ function setPath(t, tx, tz, finalDirect) {
   while (pts.length) { // 이미 지나친 교차로로는 되돌아가지 않아요
     const nx = pts[1] || (finalDirect ? { x: tx, z: tz } : null);
     if (!nx) break;
-    const ex = nx.x - pts[0].x, ez = nx.z - pts[0].z;
-    if ((t.x - pts[0].x) * ex + (t.z - pts[0].z) * ez > 0) pts.shift(); else break;
+    const ex = nx.x - pts[0].x, ez = nx.z - pts[0].z, el = Math.hypot(ex, ez) || 1;
+    const along = ((t.x - pts[0].x) * ex + (t.z - pts[0].z) * ez) / el;
+    const side = Math.abs((t.x - pts[0].x) * ez - (t.z - pts[0].z) * ex) / el;   // 길에서 옆으로 떨어진 거리
+    if (along > 0 && side < 3.5) pts.shift(); else break;   // 길 위에서 이미 지나친 교차로만 건너뛰어요 (집을 가로지르지 않게)
   }
   if (finalDirect && pts.length >= 2) {
     const p0 = pts[pts.length - 2], p1 = pts[pts.length - 1];
@@ -1153,12 +1190,31 @@ function rollTraits() {
   const sightMul = blind ? 0 : (0.55 + eyeR / 27 * 0.9) * (eyes === 3 ? 1.2 : 1);
   const hearMul = blind ? 2.6 : rand(0.5, 0.9);
   const skin = pick(TITAN_SKINS);
-  return {
+  const tr = {
     eyes, eyeR, pupil, sx, sy, hs, nose, blind, speedMul, sightMul, hearMul, skin,
     mouthW: rand(0.22, 0.85), mouthH: rand(0.07, 0.4), mouthKind: pick(['grin', 'grin', 'o', 'smile', 'flat']),
     iris: pick(IRIS), shirt: pick(TITAN_SHIRTS), pants: pick(TITAN_PANTS), hair: pick(TITAN_HAIR), bald: Math.random() < 0.25
   };
+  applyKind(tr);
+  return tr;
 }
+// 특별한 거인: 달리는 거인(작고 빠름) / 대형 거인(크고 느리고 두 번 베야 함) / 소리치는 거인(비명으로 다른 거인을 불러요)
+function applyKind(tr) {
+  tr.kind = 'normal'; tr.hp = 1;
+  if (Math.random() >= CONFIG.specialChance) return;
+  const r = Math.random();
+  if (r < 0.4) {
+    tr.kind = 'runner'; tr.sy = rand(2.4, 3.4); tr.sx = rand(2.0, 2.8); tr.speedMul = rand(1.35, 1.45);
+    tr.skin = 0xc4684f; tr.shirt = 0x7a2a2a;
+  } else if (r < 0.7) {
+    tr.kind = 'giant'; tr.sy = rand(7.5, 9.0); tr.sx = rand(5.5, 6.5); tr.speedMul = rand(0.45, 0.6); tr.hp = 2;
+    tr.skin = 0xb7a090; tr.shirt = 0x4a4f5a; tr.hs = rand(0.9, 1.2);
+  } else {
+    tr.kind = 'screamer'; tr.skin = 0xd88a8a; tr.shirt = 0x6a3a6a; tr.mouthKind = 'o'; tr.mouthW = 0.8; tr.mouthH = 0.4;
+    if (tr.eyes === 0) { tr.eyes = 2; tr.eyeR = rand(10, 18); tr.blind = false; tr.sightMul = 0.9; tr.hearMul = 0.7; }
+  }
+}
+const KIND_NAME = { runner: '달리는 거인', giant: '대형 거인', screamer: '소리치는 거인' };
 function makeTitanRig(tr) {
   return makeRig({ skin: tr.skin, shirt: tr.shirt, arm: tr.skin, pants: tr.pants, hair: tr.hair, sx: tr.sx, sy: tr.sy,
                    hs: tr.hs, nose: tr.nose, bald: tr.bald, napeMarker: true, noseColor: tr.skin - 0x101010 + 0x050200,
@@ -1176,7 +1232,7 @@ function mouthPos(t) { // 거인 입 앞 (잡은 사람을 들고 있는 곳)
 }
 // ---------- 게임 물체 (맵을 고른 뒤에 만들어요) ----------
 const player = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, rot: 0, step: 0, onGround: true, grappling: false, anchor: null,
-                 grappleT: 0, slashT: 0, grabbed: null, mash: 0, noiseT: 0, carried: [], ghost: null, stallT: 0, stallRef: { x: 0, y: 0, z: 0 }, rig: null };
+                 grappleT: 0, slashT: 0, grabbed: null, mash: 0, noiseT: 0, carried: [], ghost: null, stallT: 0, stallRef: { x: 0, y: 0, z: 0 }, rig: null, gas: 100, blade: 100 };
 const cables = []; // 입체기동 줄 (양쪽 허리에서 나가요)
 const titans = [];
 const citizens = [];
@@ -1205,7 +1261,7 @@ function makeActors() {
   }
 
   for (let i = 0; i < CONFIG.titanCount; i++) {
-    titans.push({ rig: null, tr: null, x: 0, z: 0, rot: 0, step: Math.random() * 6, state: 'inactive', respawnAt: i * 0.8,
+    titans.push({ rig: null, tr: null, x: 0, y: 0, z: 0, rot: 0, step: Math.random() * 6, state: 'inactive', respawnAt: i * 0.8,
                   path: [], target: null, holding: null, scanT: 0, repathT: 0, chaseTime: 0, ignorePlayer: 0, searchCD: 0,
                   searchT: 0, searchTarget: null, eatT: 0, stunT: 0, deadT: 0, reach: 0, heard: null, heardT: 0,
                   sx: 3.6, sy: 3.6, speedMul: 1, sight: 95, hearMul: 0.7, grabReach: 8.5, grabCD: 0 });
@@ -1286,13 +1342,15 @@ function resetGame() {
   player.x = LAY.start.x; player.z = LAY.start.z; player.y = 0;
   player.vx = player.vy = player.vz = 0; player.rot = 0; player.grappling = false; player.anchor = null;
   player.grabbed = null; player.mash = 0; player.carried = []; player.ghost = null;
+  player.gas = CONFIG.gasMax; player.blade = CONFIG.bladeMax;
+  for (const gt of GATES) { gt.hp = gt.maxHp; setGateState(gt, gt.initState); gt.toastT = 0; }
   yaw = 0; camFocus = { x: player.x, y: 0, z: player.z };
   setCutaway(null);
 
   for (const h of houses) h.citizen = null;
   const pool = houses.filter(h => h.kind === 'house');
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
-  const hiddenCount = CONFIG.citizenCount - CONFIG.citizenOutside;
+  const hiddenCount = Math.min(CONFIG.citizenCount - CONFIG.citizenOutside, pool.length);
   citizens.forEach((c, i) => {
     c.holder = null; c.cower = 0; c.safeT = 0; c.house = null;
     c.rig.group.visible = true; c.rig.armsUp = true; c.rig.group.rotation.set(0, rand(0, 6.28), 0);
@@ -1328,7 +1386,7 @@ const keys = {};
 function keyName(e) { // 한글 입력 상태에서도 WASD가 되도록 '키 위치(code)'를 써요
   switch (e.code) {
     case 'KeyW': return 'w'; case 'KeyA': return 'a'; case 'KeyS': return 's'; case 'KeyD': return 'd';
-    case 'KeyQ': return 'q'; case 'KeyE': return 'e'; case 'KeyF': return 'f'; case 'KeyG': return 'g'; case 'Space': return ' ';
+    case 'KeyQ': return 'q'; case 'KeyE': return 'e'; case 'KeyF': return 'f'; case 'KeyG': return 'g'; case 'KeyX': return 'x'; case 'Space': return ' ';
     case 'ArrowUp': return 'arrowup'; case 'ArrowDown': return 'arrowdown';
     case 'ArrowLeft': return 'arrowleft'; case 'ArrowRight': return 'arrowright';
   }
@@ -1341,6 +1399,7 @@ function press(action) {
   if (action === 'grapple') startGrapple();
   else if (action === 'attack') tryAttack();
   else if (action === 'rescue') tryRescue();
+  else if (action === 'gate') tryGate();
 }
 window.addEventListener('keydown', e => {
   const k = keyName(e);
@@ -1351,6 +1410,7 @@ window.addEventListener('keydown', e => {
   if (k === ' ') press('grapple');
   else if (k === 'f') press('attack');
   else if (k === 'g') press('rescue');
+  else if (k === 'x') press('gate');
   else if (state === 'play' && player.grabbed) player.mash++;
 });
 window.addEventListener('keyup', e => {
@@ -1376,6 +1436,7 @@ function bindBtn(id, down, up) {
 bindBtn('btnGrapple', () => press('grapple'), () => stopGrapple());
 bindBtn('btnAttack', () => press('attack'));
 bindBtn('btnRescue', () => press('rescue'));
+bindBtn('btnGate', () => press('gate'));
 
 const JOY_MAX = 60;
 const joy = { id: null, sx: 0, sy: 0, cx: 0, cy: 0 };
@@ -1522,6 +1583,7 @@ function fireGrapple(a) {
 function startGrapple() {
   const p = player;
   if (p.grabbed || p.grappling) return;
+  if (p.gas < 8) { toast('가스가 부족해요! 대피소에서 채워요!', 1.8); return; }
   let ax = -Math.sin(yaw), az = -Math.cos(yaw);
   const mv = moveInput();
   if (mv.mag > 0.2) { ax = mv.x / mv.mag; az = mv.z / mv.mag; }
@@ -1581,10 +1643,28 @@ function startGrapple() {
   fireGrapple(best);
 }
 
+// ---------- 성문 열고 닫기 (X) ----------
+function tryGate() {
+  const p = player;
+  let best = null, bd = 1e9;
+  for (const g of GATES) { const d = Math.hypot(g.px - p.x, g.pz - p.z); if (d < bd) { bd = d; best = g; } }
+  if (!best || bd > 34 || p.y > 40) { toast('가까이에 성문이 없어요. 성문 앞에서 X!', 1.6); return; }
+  if (best.state === 'closed') { setGateState(best, 'open'); toast('성문을 열었어요.', 1.4); }
+  else {
+    const near = titans.some(t => t.state !== 'inactive' && t.state !== 'dead' && Math.hypot(t.x - best.px, t.z - best.pz) < 22);
+    if (near) { toast('거인이 가까이 있어서 성문을 닫을 수 없어요!', 1.8); return; }
+    const wasBroken = best.state === 'broken';
+    best.hp = best.maxHp; best.mesh.material.color.setHex(0x5a3b22); setGateState(best, 'closed');
+    toast(wasBroken ? '부서진 성문을 고쳐서 닫았어요!' : '성문을 닫았어요! 거인이 부술 수 있으니 조심!', 2);
+  }
+  makeNoise(best.px, best.pz, 50);
+}
+
 // ---------- 행동: 목덜미 베기 / 시민 구출 ----------
 function tryAttack() {
   const p = player;
   if (p.slashT > 0) return;
+  if (p.blade <= 0) { toast('칼이 부러졌어요! 대피소에서 새 칼로 바꾸세요!', 2); return; }
   p.slashT = 0.35;
   makeNoise(p.x, p.z, 70);
   let best = null, bd = 1e9;
@@ -1599,7 +1679,21 @@ function tryAttack() {
   const fx = Math.sin(best.rot), fz = Math.cos(best.rot);
   const rx = p.x - best.x, rz = p.z - best.z, rl = Math.hypot(rx, rz) || 1;
   if (rl > 2.5 && (rx * fx + rz * fz) / rl > -0.15) { toast('앞에서는 벨 수 없어요! 거인의 뒤로 돌아가세요!', 2.2); return; }
-  killTitan(best);
+  hitTitan(best);
+}
+function hitTitan(t) { // 목덜미를 한 번 벴을 때 (대형 거인은 두 번 필요해요)
+  const p = player;
+  p.blade = Math.max(0, p.blade - CONFIG.bladeCost);
+  t.hp -= 1;
+  if (t.hp > 0) {
+    const n = napePos(t);
+    spawnParticles(n.x, n.y, n.z, 12, 1.2, 10, 1.2);
+    if (t.state !== 'eat') { t.state = 'stun'; t.stunT = 1.4; t.target = null; t.path = []; }
+    toast('아직 쓰러지지 않았어요! 목덜미를 한 번 더!' + (p.blade <= 0 ? ' (칼이 부러졌어요!)' : ''), 2.2);
+    return;
+  }
+  killTitan(t);
+  if (p.blade <= 0) toast('거인을 쓰러뜨렸지만 칼이 부러졌어요! 대피소에서 바꾸세요!', 3);
 }
 function killTitan(t) {
   const n = napePos(t);
@@ -1676,6 +1770,8 @@ function updatePlayer(dt) {
 
   if (p.grappling) {
     p.grappleT += dt;
+    p.gas = Math.max(0, p.gas - CONFIG.gasUse * dt);
+    if (p.gas <= 0) { stopGrapple(); toast('가스가 다 떨어졌어요! 대피소에서 채우세요!', 2.4); }
     const a = p.anchor;
     if (a.titan) {
       if (a.titan.state === 'dead' || a.titan.state === 'inactive') stopGrapple();
@@ -1758,6 +1854,12 @@ function updatePlayer(dt) {
   p.rig.group.rotation.y = p.rot;
 
   // 발소리·날아가는 소리
+  if (inShelter(p.x, p.z)) { // 대피소: 가스를 채우고 칼을 갈아요
+    if (p.gas < CONFIG.gasMax - 0.5 || p.blade < CONFIG.bladeMax - 0.5) p.refill = true;
+    p.gas = Math.min(CONFIG.gasMax, p.gas + CONFIG.gasShelter * dt);
+    p.blade = Math.min(CONFIG.bladeMax, p.blade + CONFIG.bladeShelter * dt);
+    if (p.refill && p.gas >= CONFIG.gasMax && p.blade >= CONFIG.bladeMax) { p.refill = false; toast('가스와 칼을 가득 채웠어요!', 1.6); }
+  } else if (!p.grappling && p.onGround) p.gas = Math.min(CONFIG.gasMax, p.gas + CONFIG.gasRegen * dt);
   p.noiseT -= dt;
   if (p.noiseT <= 0) {
     if (p.grappling || (!p.onGround && sp > 10)) { makeNoise(p.x, p.z, 45); p.noiseT = 0.5; }
@@ -1810,7 +1912,8 @@ function spawnTitan(t) {
   t.speedMul = t.tr.speedMul;
   t.sight = CONFIG.titanSight * t.tr.sightMul;
   t.hearMul = t.tr.hearMul;
-  t.grabReach = clamp(2.35 * t.tr.sy, 6, 14);
+  t.grabReach = clamp(2.35 * t.tr.sy, 6, t.tr.kind === 'giant' ? 20 : 14);
+  t.hp = t.tr.hp; t.screamCD = 0;
 
   let sn = GRAPH.nodes[GRAPH.spawn[0]];
   for (let tries = 0; tries < 40; tries++) {
@@ -1823,6 +1926,7 @@ function spawnTitan(t) {
   t.rig.group.rotation.x = 0; t.rig.group.position.set(t.x, 0, t.z);
   t.rig.eating = false;
   if (t.tr.blind) toast('눈이 없는 거인이 나타났어요! 소리를 듣고 찾아오니 조용히 움직이세요!', 3.2);
+  else if (KIND_NAME[t.tr.kind]) toast(KIND_NAME[t.tr.kind] + '이 나타났어요!' + (t.tr.kind === 'giant' ? ' 목덜미를 두 번 베어야 해요!' : t.tr.kind === 'runner' ? ' 아주 빨라요!' : ' 비명으로 다른 거인을 불러요!'), 2.6);
   else toast('거인이 나타났어요!', 1.4);
 }
 
@@ -1899,7 +2003,7 @@ function updateTitan(t, dt) {
   t.heardT = Math.max(0, t.heardT - dt);
   t.scanT -= dt;
   let walkAmt = 0;
-  const walkV = CONFIG.titanWalkSpeed * t.speedMul, chaseV = CONFIG.titanChaseSpeed * t.speedMul;
+  const walkV = CONFIG.titanWalkSpeed * t.speedMul * CONFIG.titanSpeedMul, chaseV = CONFIG.titanChaseSpeed * t.speedMul * CONFIG.titanSpeedMul;
 
   if (t.state === 'wander' || t.state === 'chase') {
     if (t.scanT <= 0) {
@@ -2000,6 +2104,23 @@ function updateTitan(t, dt) {
 
   t.rig.eating = (t.state === 'eat');
 
+  if (t.state === 'chase' && t.tr.kind === 'screamer' && t.target && t.target.type !== 'noise') { // 비명
+    t.screamCD -= dt;
+    if (t.screamCD <= 0) {
+      t.screamCD = 7; makeNoise(t.x, t.z, 170);
+      spawnParticles(t.x, 4 * t.sy, t.z, 10, 2, 10, 1.4);
+      toast('소리치는 거인의 비명! 다른 거인들이 몰려와요!', 2);
+    }
+  }
+  if (t.state === 'wander' || t.state === 'chase') { // 닫힌 성문을 두드려 부숴요
+    for (const gt of GATES) {
+      if (gt.state !== 'closed' || Math.hypot(t.x - gt.px, t.z - gt.pz) > 17) continue;
+      gt.hp -= dt * Math.max(0.6, t.sy / 4);
+      gt.mesh.material.color.setHex(gt.hp > gt.maxHp * 0.66 ? 0x5a3b22 : gt.hp > gt.maxHp * 0.33 ? 0x7a3a22 : 0x9a2a1a);
+      if (gt.hp <= 0) { setGateState(gt, 'broken'); toast('성문이 부서졌어요!! 거인이 들어와요!', 2.6); makeNoise(gt.px, gt.pz, 120); }
+      else if (gt.toastT <= 0) { gt.toastT = 3; toast('거인이 성문을 두드리고 있어요! 버틸 시간 ' + Math.ceil(gt.hp) + '초', 2); }
+    }
+  }
   // 대피소 근처에는 못 들어와요
   const ds = Math.hypot(t.x - SHELTER.x, t.z - SHELTER.z);
   if (ds < SHELTER.r + 5 && ds > 0.01) {
@@ -2014,6 +2135,16 @@ function updateTitan(t, dt) {
   }
   clampBounds(t, 8);
   resolveSolids(t, 3.5, 0, 60);
+  if (t.state === 'wander' || t.state === 'chase') { // 집 모서리 등에 걸려 못 움직이면 길 한가운데로 옮겨 줘요
+    t.chkT = (t.chkT || 0) + dt;
+    if (t.chkT >= 2) {
+      if (t.chkX !== undefined && Math.hypot(t.x - t.chkX, t.z - t.chkZ) < 1.5 && t.path.length) {
+        const ne = nearestEdge(t.x, t.z), pt = edgePoint(ne.e, ne.u);
+        t.x = pt.x; t.z = pt.z; t.path = [];
+      }
+      t.chkT = 0; t.chkX = t.x; t.chkZ = t.z;
+    }
+  } else { t.chkT = 0; t.chkX = undefined; }
 
   t.reach += ((t.state === 'chase' ? 1 : 0) - t.reach) * Math.min(1, dt * 4);
   if (t.state === 'chase' && !t.rig.alertShown) setTitanFace(t, 'alert');
@@ -2024,6 +2155,7 @@ function updateTitan(t, dt) {
 }
 
 function updateTitans(dt) {
+  for (const gt of GATES) gt.toastT = Math.max(0, gt.toastT - dt);
   for (const t of titans) {
     if (t.state === 'inactive') {
       if (elapsed >= t.respawnAt) spawnTitan(t);
@@ -2104,6 +2236,7 @@ function drawMini() {
     if (c.state === 'hidden') { mm.fillStyle = '#ffd84a'; mm.fillRect(px(c.x) - 2.5, pz(c.z) - 2.5, 5, 5); }
     else if (c.state === 'outside') { mm.fillStyle = '#66ff88'; mm.fillRect(px(c.x) - 2.5, pz(c.z) - 2.5, 5, 5); }
   }
+  for (const gt of GATES) { mm.fillStyle = gt.state === 'open' ? '#7dff7d' : gt.state === 'closed' ? '#ffb84a' : '#ff4a4a'; mm.fillRect(px(gt.px) - 3, pz(gt.pz) - 3, 6, 6); }
   const blink = Math.floor(elapsed * 4) % 2 === 0;
   for (const t of titans) {
     if (t.state === 'inactive' || t.state === 'dead') continue;
@@ -2173,13 +2306,17 @@ function updateDangers() {
   } else struggleEl.style.display = 'none';
 }
 
+function meter(f) { const n = Math.round(clamp(f, 0, 1) * 10); return '▮'.repeat(n) + '▯'.repeat(10 - n) + ' ' + Math.round(clamp(f, 0, 1) * 100) + '%'; }
 function updateHud() {
   const sec = Math.floor(elapsed), mmn = Math.floor(sec / 60), ss = ('0' + (sec % 60)).slice(-2);
   hudEl.textContent = '시간 ' + mmn + ':' + ss + '\n' +
     '대피 ' + delivered + ' / ' + CONFIG.saveGoal + '명\n' +
     '먹힘 ' + eaten + ' / ' + EAT_LIMIT + '명 (이면 실패)\n' +
     '업은 시민 ' + player.carried.length + ' / ' + CONFIG.carryMax + '\n' +
-    '쓰러뜨린 거인 ' + kills;
+    '쓰러뜨린 거인 ' + kills + '\n' +
+    '가스 ' + meter(player.gas / CONFIG.gasMax) + '\n' +
+    '칼  ' + meter(player.blade / CONFIG.bladeMax) +
+    (GATES.length ? '\n성문 열림 ' + GATES.filter(g => g.state === 'open').length + ' · 닫힘 ' + GATES.filter(g => g.state === 'closed').length + ' · 부서짐 ' + GATES.filter(g => g.state === 'broken').length : '');
 }
 
 // ---------- 매 프레임 ----------
@@ -2255,6 +2392,24 @@ const menuMsg = document.getElementById('menuMsg');
 const menuStart = document.getElementById('menuStart');
 const layouts = {};
 let chosenId = null;
+const DIFF = {
+  easy:   { titanCount: 3, titanSpeedMul: 0.8, dangerSeconds: 20, titanRespawnSeconds: 30, specialChance: 0.2, gasUse: 9 },
+  normal: { titanCount: 5, titanSpeedMul: 1.0, dangerSeconds: 15, titanRespawnSeconds: 20, specialChance: 0.45, gasUse: 12 },
+  hard:   { titanCount: 5, titanSpeedMul: 1.1, dangerSeconds: 10, titanRespawnSeconds: 12, specialChance: 0.7, gasUse: 15 }
+};
+let SETTINGS = { diff: 'normal', cit: 20 };
+try { const sv = JSON.parse(localStorage.getItem('wd_set') || 'null'); if (sv && DIFF[sv.diff] && [10, 20, 30].includes(sv.cit)) SETTINGS = sv; } catch (e) { /* 저장값이 없어도 괜찮아요 */ }
+function refreshOpts() {
+  for (const k in DIFF) document.getElementById('d_' + k).className = 'opt' + (SETTINGS.diff === k ? ' sel' : '');
+  for (const c of [10, 20, 30]) document.getElementById('c_' + c).className = 'opt' + (SETTINGS.cit === c ? ' sel' : '');
+}
+function setOpt(key, val) {
+  SETTINGS[key] = val; refreshOpts();
+  try { localStorage.setItem('wd_set', JSON.stringify(SETTINGS)); } catch (e) { /* 괜찮아요 */ }
+}
+for (const k in DIFF) document.getElementById('d_' + k).addEventListener('click', () => setOpt('diff', k));
+for (const c of [10, 20, 30]) document.getElementById('c_' + c).addEventListener('click', () => setOpt('cit', c));
+refreshOpts();
 
 function loadScript(src) { // 맵 파일 하나를 불러와요 (파일 안의 registerMap 이 실행돼요)
   return new Promise(resolve => {
@@ -2266,15 +2421,20 @@ function loadScript(src) { // 맵 파일 하나를 불러와요 (파일 안의 r
   });
 }
 
-function enterMap(id) {
+function enterMap(id, st) {
   const L = layouts[id];
   if (!L || LAY) return false;
-  Object.assign(CONFIG, L.config);
+  const S = st || SETTINGS;
+  Object.assign(CONFIG, L.config, DIFF[S.diff] || DIFF.normal);
+  CONFIG.citizenCount = S.cit || 20;
+  CONFIG.citizenOutside = Math.max(2, Math.round(CONFIG.citizenCount * 0.2));
+  CONFIG.saveGoal = Math.ceil(CONFIG.citizenCount * 0.65);
   realizeWorld(L);
   makeActors();
   EAT_LIMIT = CONFIG.citizenCount - CONFIG.saveGoal + 1;
   drawMapBase(mmBase.getContext('2d'), 150, L);
   menuEl.style.display = 'none';
+  if (!GATES.length) document.getElementById('btnGate').style.display = 'none';
   try { localStorage.setItem('wd_lastmap', id); } catch (e) { /* 저장이 안 돼도 괜찮아요 */ }
   state = 'ready';
   startGame();
